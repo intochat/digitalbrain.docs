@@ -1,104 +1,153 @@
 # Concepts
 
-DigitalBrain is built from four things: neurons, synapses, modules, and executable tests. Everything
-else composes them.
+DigitalBrain is a private workspace whose durable components communicate through typed contracts.
+These names are part of the architecture: using them consistently matters because source,
+serialized state, topology, and product language meet at these boundaries.
+
+## Workspace and actor
+
+A **workspace** is one installed DigitalBrain and its membership. The runtime currently addresses
+that installation with an `OwnerId`; the checked-in local AppHost uses the logical owner key `dev`.
+That key selects the Orleans-owned brain. It is not a login account and does not authenticate a
+person.
+
+A stored user has a stable `PrincipalId` and one workspace role:
+
+| Role | Current meaning |
+| --- | --- |
+| Owner | First bootstrap account; may administer membership |
+| Admin | May create users and administer membership |
+| Builder | Workspace member reserved for authoring capability |
+| Viewer | Workspace member with ordinary product access |
+
+An **actor** is the durable stamp carried by user-initiated work: `PrincipalId` plus username. The
+Kernel derives it from authenticated claims. Integration authorization and tokens are bound to the
+principal rather than to a client-supplied neuron name.
 
 ## Neuron
 
-A neuron is a durable Orleans journaled grain. It receives and emits synapses, keeps bounded incoming
-and outgoing journals, enforces owner and delivery invariants, and recovers after a silo restart.
+A **neuron** is a durable, owner-bound Orleans grain with a typed interface and deterministic
+`NeuronId`. It receives direct capability calls and synapse deliveries, owns state, and processes a
+normal Orleans turn single-threadedly.
 
-Domain capability belongs in a module neuron — `Llama32` is an AI neuron. The kernel's `Neuron` stays
-domain-neutral.
+The public grain adapter stays small. Journal, outbox, message, capability, authorization, and
+delivery-memory responsibilities live in focused collaborators. The runtime does not use
+handwritten partial classes; source-generated partial wire interfaces remain valid contracts.
 
-## Synapse
+## Synapse and request synapse
 
-A synapse is an immutable typed fact. The kernel carries it in a read-only delivery envelope with
-correlation and causation lineage. A neuron declares `IHandle<TSynapse>` for facts it consumes and
-`IEmit<TSynapse>` for facts it produces, provable at build time.
+A **synapse** is an immutable typed fact. Delivery adds an envelope containing the source neuron,
+sequence, correlation and causation identifiers, and timestamp. A neuron declares facts it accepts
+with `IHandle<TSynapse>`.
 
-The distinction that runs through the whole system:
+A **request synapse** is a `RequestSynapse<TResponse>`: a synapse addressed to one neuron with one
+typed synapse response. It gives `IDigitalBrain.Get<TNeuron>().FireAsync(request)` a reply contract.
+Ordinary emitted facts have no reply contract.
 
-> A typed neuron method is a **directed request** that can reply.
-> A synapse is an **undirected fact** that does not.
+Keep these paths distinct:
 
-Both cross the same owner-aware Orleans boundary, and both are journaled.
+- `SendAsync(receiver, fact)` and a named client `FireAsync` target one neuron.
+- `EmitAsync(fact)` and receiver-free client `FireAsync` route a fact through registered broadcast
+  handlers and live connection-graph edges.
+- A typed neuron interface call is a capability request. The Kernel reifies its durable outcome;
+  it is not an unrecorded shortcut around the synapse model.
+
+## Journal and outbox
+
+Every neuron owns bounded **incoming** and **outgoing** journals. The incoming journal records what
+the neuron accepted; the outgoing journal records what it committed. Readers can resume after a
+sequence instead of asking the neuron to replay arbitrary in-memory events.
+
+The outgoing journal is also the **outbox**. A handling turn stages outgoing deliveries, commits
+the journal checkpoint, and then drains delivery work. Delivery is at least once, so receivers keep
+bounded delivery memory and deduplicate already-settled deliveries.
+
+## Connection graph
+
+A **connection** is a durable route:
+
+```text
+source neuron + emitted synapse alias -> target neuron + optional transform
+```
+
+The **connection graph** stores those routes. It is the long-lived topology of the brain, not an
+execution plan: a connection says where a fact goes, while an Execution owns steps, effects,
+waiting, retry, and reconciliation.
+
+An **integration** is different. It is a user's account in an external system such as Gmail or
+Salesforce. Connections are inside the brain; integrations cross its security boundary.
 
 ## Module
 
-A module is a compile-time package family owning one domain's vocabulary, runtime, and optional
-Aspire hosting:
+A **module** is trusted code composed at startup. Its project family normally contains:
 
 ```text
-DigitalBrain.Modules.AI.Contracts
-DigitalBrain.Modules.AI
-DigitalBrain.Modules.AI.Aspire.Hosting
+Contracts             permanent neuron and synapse interfaces
+Runtime               neuron implementations and the module configuration hook
+Aspire.Hosting        optional external-resource projection
 ```
 
-AppHost selects modules; source generation composes them into `silo.AddDigitalBrain()`. A module is
-available when referenced and active only when selected.
+Contract assemblies produce reflected capability manifests. Runtime assemblies contribute neuron
+implementations, broadcast handlers, and `IModule` configuration hooks. AppHost selection controls
+external resources; Kernel composition controls which contracts and implementations are available
+inside the silo. Those catalogs are currently explicit and duplicated.
 
-## TestBrain
+Google and Salesforce are thin provider definitions over the shared SDK MCP/OAuth rail. Their
+Contracts projects remain module boundaries; in particular,
+`DigitalBrain.Modules.Salesforce.Contracts` is permanent product architecture.
 
-`TestBrain` is the method-scoped testing primitive. A `DigitalBrainFixture` owns one real three-silo
-in-process cluster and permits one active `TestBrain` at a time, so tests serialize within a fixture
-while separate assemblies run in parallel.
+## Execution vocabulary
 
-A test advances deterministic time, controls only closed durability faults and external edges, and
-asserts on typed committed-journal evidence. `TestOwner` supplies the isolated owner identity;
-`TestNeuron<T>` addresses one typed neuron.
+An **Execution** is one durable run toward a `Goal`. It is the product's only job/work mechanism.
 
-## Vocabulary
+| Term | Meaning now |
+| --- | --- |
+| Goal | Immutable description of the desired result |
+| Execution | Durable identity and state for one run |
+| Attempt | One worker generation advancing that Execution |
+| Operation | One externally observable effect with a stable caller-supplied key |
+| Blocker | Typed reason the Execution cannot currently advance |
+| Worker | Allow-listed neuron that accepts, continues, or cancels an Attempt |
 
-These terms are load-bearing — they are the language the kernel, modules, and behaviors share, and
-the vocabulary a future natural-language layer will resolve against.
+Receipts and operation rows are bounded. If a dispatched external effect loses its outcome, the
+Execution enters `OutcomeUncertain`; it does not automatically repeat the effect. An explicit
+resolution must complete it, fail it, or allow a retry.
 
-| Term | Meaning | Not to be called |
-| --- | --- | --- |
-| **Neuron** | A durable addressable identity that receives requests and facts and owns its state | service, actor, grain |
-| **Synapse** | A typed fact delivered between neurons with no reply contract | command, request, message |
-| **Capability request** | A directed typed interface method that may return a result | synapse, event |
-| **Module** | An independently shipped domain vocabulary and its runtime | plugin, feature flag |
-| **Behavior** | A human-approved composition of existing typed vocabulary | dynamic neuron type, script-generated contract |
-| **Registry** | The generated catalog of exact public neuron contracts | vector database, runtime assembly scan |
+The ratified product vocabulary also reserves **Task** for a future user-visible goal. There is no
+current Tasks module, so current implementation documentation uses Execution.
 
-### AI
+## Surface
 
-| Term | Meaning | Not to be called |
-| --- | --- | --- |
-| **LLM** | A typed neuron representing inference by one concrete model | agent, model tier, provider route |
-| **Agent** | A typed neuron whose model, instructions, and capabilities form one conversational role | LLM, universal neuron base |
-| **Orchestration** | A typed neuron coordinating agents or LLMs through a declared pattern | hand-written agent loop |
-| **Participant** | A typed LLM or agent neuron identified inside an orchestration | constructor dependency, MAF executor |
-| **Capability** | A semantic typed operation an agent or behavior may use | MCP tool, provider function |
+A **surface** is a durable declarative UI document opened into a principal-scoped Flutter shell.
+Buttons, charts, diagrams, notes, and chat cards are typed UI vocabulary. A surface is not a Flutter
+widget serialized by the model and is not an execution engine.
 
-### Work
+Current chat contracts and the `Chat` neuron still live in the UI module. HTTP chat names such as
+`main` are rewritten to a principal-scoped internal instance, so two users can use the same local
+name without sharing a transcript.
 
-| Term | Meaning | Not to be called |
-| --- | --- | --- |
-| **Task** | A durable identity for a desired outcome and its lifecycle | MAF workflow, prompt, ledger entry |
-| **Goal** | The immutable typed outcome a task is meant to achieve | prompt, work dictionary |
-| **Attempt** | One revision-fenced execution of a task by one worker | task, retry counter |
-| **Worker** | A session-owning neuron that advances an attempt and reports typed facts | stateless agent, LLM |
-| **Blocker** | A typed reason a task cannot currently advance | run status, free-form error string |
-| **Successor task** | A new task linked to an immutable terminal task | reopened task |
+## Wire alias
 
-An attempt failure is not a task failure. Terminal tasks are immutable, and retries are successors.
+A **wire alias** is the stable Orleans serialization or grain-contract name attached with
+`[Alias(...)]`. Aliases such as `db.execution`, `chat.send-message`, `ui.surface`,
+`time.timer-elapsed`, `memory.store-vector`, and `introspection.read-topology-request` are permanent
+compatibility contracts. C# type names and project layout may evolve; a persisted alias cannot be
+casually renamed or reused.
 
-### Time
+The dedicated wire-contract reference expands these identity and compatibility rules after the
+architecture set.
 
-| Term | Meaning | Status |
-| --- | --- | --- |
-| **Countdown** | A durable one-shot schedule expressed as a duration | Built |
-| **Reminder** | A durable absolute or recurring schedule | Designed, unbuilt |
-| **Interval schedule** | Recurrence based on elapsed duration from an instant | Designed, unbuilt |
-| **Calendar schedule** | Wall-clock recurrence in an IANA time zone; DST records and library remain open | Designed, unbuilt |
+## Product state
 
-Only Countdown is implemented. Do not call a Countdown a timer or a reminder.
+**Implemented now.** Workspace identity, neurons, synapses, dual journals, outbox delivery,
+connection routing, modules, durable Execution, surfaces, and permanent aliases exist in production
+source.
 
-## Behaviors
+**Known limitation.** The northbound MCP host does not yet derive a verified actor, so its chat
+tools still use unscoped names and a fixed operator actor. The Kernel HTTP edge does perform
+principal scoping.
 
-A behavior is a human-approved runtime composition of existing typed vocabulary. The shipped
-`DigitalBrain.Behaviors` SDK defines program, constrained-context, manifest, and identity contracts —
-it does not compile, approve, install, or execute anything. That rail is designed and unbuilt; see
-[Architecture](/architecture#behaviors).
+**Ratified next.** **Conversation** becomes a domain module between UI and AI. **Behavior** becomes
+a named, approved, versioned composition of existing vocabulary running out of process with no
+ambient authority. Today the Flutter Behavior Studio is preview/demo-only: no Behavior host,
+approval/install rail, or execution path exists.

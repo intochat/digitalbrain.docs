@@ -3,32 +3,53 @@ layout: home
 
 hero:
   name: DigitalBrain
-  text: Durable agents for .NET
-  tagline: Neurons, synapses, and executable tests on Orleans and Aspire
+  text: A private, durable operating system
+  tagline: Neurons, synapses, durable execution, and a live Flutter workspace on Orleans and Aspire
   image:
     src: /logo.svg
     alt: DigitalBrain
   actions:
     - theme: brand
-      text: Quickstart
-      link: /quickstart
+      text: Start locally
+      link: /getting-started
     - theme: alt
-      text: Concepts
+      text: Learn the concepts
       link: /concepts
     - theme: alt
-      text: Architecture
+      text: See the architecture
       link: /architecture
     - theme: alt
-      text: Specification
-      link: /specification
+      text: Browse modules
+      link: /modules
+    - theme: alt
+      text: Check status
+      link: /status
 
 features:
-  - title: Neurons
-    details: A neuron is a durable agent — an Orleans journaled grain with dual durable journals for incoming and outgoing synapses, typed identity, owner-bound authorization, and restart recovery.
-  - title: Synapses
-    details: A synapse is an immutable typed fact. The kernel delivers it in a read-only envelope carrying correlation and causation lineage on every hop. Neurons declare what they consume with IHandle and what they produce with IEmit, provable at build time.
-  - title: TestBrain
-    details: The method-scoped testing primitive. Fire a synapse into a real three-silo cluster, advance deterministic time, and assert on typed committed-journal evidence.
-  - title: Programmable
-    details: The goal is a brain you program by writing ordinary C#, and that can program itself. Modules contribute vocabulary at compile time; the Behavior SDK supplies a foundation for future single-file logic. Proposal, installation, and execution remain Designed, not Built — see Architecture.
+  - title: Durable neurons
+    details: Owner-bound Orleans grains process single-threaded turns and recover their journaled state after activation or restart.
+  - title: Immutable synapses
+    details: Typed facts carry stable identity, correlation, causation, caller, sequence, and timestamp metadata across durable delivery.
+  - title: Runtime connection graph
+    details: Durable connections route emitted facts by permanent wire alias, with optional typed transforms, without embedding workflow steps in the graph.
+  - title: Durable executions
+    details: Executions, attempts, operations, blockers, worker leases, and explicit uncertain-outcome resolution keep useful work independent of an HTTP request.
+  - title: Private workspace identity
+    details: Cookie identity, workspace roles, principal-scoped chats and surfaces, and per-user OAuth state keep one installation's users separated.
+  - title: Flutter shell
+    details: The checked-in Windows Flutter host renders chat, surfaces, topology, and authorization projections from the Kernel HTTP edge.
 ---
+
+## Product state
+
+**Implemented now.** The checked-in AppHost runs the Kernel, Flutter shell, a separate northbound
+MCP server, Azurite-backed Orleans durability, Qdrant vector memory, Ollama with Gemma4 and Llama32,
+and Google and Salesforce definitions over the shared MCP/OAuth rail.
+
+**Known limitation.** The separate northbound `/mcp` endpoint is not yet authenticated or scoped to
+the caller. Salesforce consent also requires the provider application's callback registration to
+match `http://localhost:5080/oauth/callback`. See [Current status](/status) before exposing either
+boundary.
+
+**Ratified next.** Conversation becomes its own domain module and approved Behaviors become the
+runtime-programmable product layer. Neither is presented here as shipped architecture.
