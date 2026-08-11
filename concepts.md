@@ -134,8 +134,8 @@ A **wire alias** is the stable Orleans serialization or grain-contract name atta
 compatibility contracts. C# type names and project layout may evolve; a persisted alias cannot be
 casually renamed or reused.
 
-The dedicated wire-contract reference expands these identity and compatibility rules after the
-architecture set.
+See the [wire-contract reference](/reference/wire-contracts) for the identity and compatibility
+rules.
 
 ## Product state
 
