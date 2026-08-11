@@ -43,9 +43,9 @@ features:
 ## Product state
 
 **Implemented now.** The checked-in AppHost runs the Kernel, Flutter shell, a separate northbound
-MCP server, Azurite-backed Orleans durability, Qdrant vector memory, Ollama with Gemma4 and Llama32,
-Google and Salesforce definitions over the shared MCP/OAuth rail, and a separate Scripting client
-that generates and runs one file-based C# app against the cluster.
+MCP server, Azurite-backed Orleans durability, Qdrant vector memory, Ollama with Gemma4, Google and
+Salesforce definitions over the shared MCP/OAuth rail, and a separate Scripting client that
+generates and runs one file-based C# app against the cluster.
 
 **Known limitation.** The separate northbound `/mcp` endpoint is not yet authenticated or scoped to
 the caller. Salesforce consent also requires the provider application's callback registration to

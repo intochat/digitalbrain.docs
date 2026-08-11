@@ -20,7 +20,7 @@ UI module: principal-scoped Chat + declarative Surfaces
 Execution module: FIFO turn job, attempt, worker lease, effect ledger
         |
         v
-AI module: Assistant -> Gemma4 / Llama32
+AI module: Assistant -> Gemma4
         |
         v
 SDK MCP/OAuth rail -> Google Gmail MCP / Salesforce MCP

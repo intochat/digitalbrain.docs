@@ -19,11 +19,11 @@ without joining Kernel composition.
   formation, orchestration refusal, and capability-tool selection.
 - **Runtime:** typed model/agent neurons, direct-agent protected session, capability tools, and MAF
   orchestration kept inside the module.
-- **Hosting:** Ollama/Open WebUI or OpenAI projections. The current AppHost selects `IGemma4`
-  (`gemma4:12b`) and `ILlama32` (`llama3.2`) only.
-- **Known limitation:** other model contracts are available in source but are not selected by the
-  product AppHost. A crash between a provider effect and its following function-result safe point
-  remains explicit debt.
+- **Hosting:** Ollama/Open WebUI or OpenAI projections. The current AppHost selects only `IGemma4`
+  (`gemma4:12b`).
+- **Known limitation:** `ILlama32` (`llama3.2`) and other model contracts remain available in source
+  but are not selected by the product AppHost. A crash between a provider effect and its following
+  function-result safe point remains explicit debt.
 
 ## Execution
 

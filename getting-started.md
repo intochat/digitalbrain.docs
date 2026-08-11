@@ -13,7 +13,7 @@ sample-module tutorial.
   to `13.5.0-preview.1.26376.5` in source.
 - Docker Desktop or another Docker-compatible engine for Azurite, Qdrant, Ollama, and Open WebUI.
 - Flutter/Dart compatible with Dart SDK `^3.12.0`, with Windows desktop support enabled.
-- Enough disk and memory for `gemma4:12b` and `llama3.2`; their Ollama data is persisted locally.
+- Enough disk and memory for `gemma4:12b`; its Ollama data is persisted locally.
 
 The full AppHost also declares operator-supplied Google client ID/secret and Salesforce client ID
 parameters. Aspire persists entered values in its secret/configuration store. Never commit them.
@@ -41,7 +41,7 @@ The checked-in graph contains these logical resources:
 | `journal` | Azure Blob storage for neuron journals |
 | `streams`, `pubsub` | Provisioned Orleans Streams queues and PubSub table; currently no consumers |
 | `qdrant` | Vector store used by the Memory module |
-| `ollama`, `gemma4-12b`, `llama32-3b` | Local inference server and the two selected models |
+| `ollama`, `gemma4-12b` | Local inference server and the selected model |
 | `openwebui` | Persistent Ollama companion UI |
 | `kernel` | Authenticated product HTTP/SSE edge on `http://localhost:5080` |
 | `mcp` | Separate northbound MCP app on port `5000`, path `/mcp` |

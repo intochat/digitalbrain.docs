@@ -36,8 +36,8 @@ current evidence.
 ### Checked-in local composition
 
 - The AppHost runs Azurite with a data volume and persistent container lifetime, Qdrant, persistent
-  Ollama/Open WebUI, Gemma4, Llama32, Kernel, Flutter, a separate northbound MCP app, and a separate
-  Scripting client.
+  Ollama/Open WebUI, Gemma4, Kernel, Flutter, a separate northbound MCP app, and a separate Scripting
+  client. Llama32 remains in source but is not selected by the current AppHost.
 - Scripting generates one temporary file-based C# app, runs it through the .NET SDK/Roslyn path,
   connects it to the Orleans cluster with `DigitalBrainClient.ConnectAsync`, fires a typed
   `ChartPoint`, attempts to clean up the artifact, and exits. It is not part of Kernel or a module.
@@ -48,8 +48,9 @@ current evidence.
 
 ### Smoke observed on 2026-08-11
 
-This smoke predates restoration of the Scripting AppHost resource. Scripting statements above are
-source-characterized implementation claims, not additions to the smoke evidence below.
+This smoke predates restoration of the Scripting AppHost resource and used the earlier graph that
+also selected Llama32. Scripting statements and the current Gemma4-only selection above are
+source-characterized implementation claims, not revisions to the smoke evidence below.
 
 - AppHost resources reached healthy, including Kernel, MCP, Flutter, Azurite, Qdrant, Ollama,
   `llama3.2`, and `gemma4:12b`.

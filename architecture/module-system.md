@@ -44,7 +44,6 @@ projected into the running Kernel.
 brain.AddModule<AIModule>(ai =>
 {
     ai.WithLlm<Gemma4>();
-    ai.WithLlm<Llama32>();
 });
 brain.AddModule<MemoryModule>(memory => memory.WithQdrant());
 brain.AddModule<UiModule>(ui => ui.WithWindowHost());
@@ -88,7 +87,7 @@ limitations.
 
 | Module or rail | Runtime contribution | Hosting contribution |
 | --- | --- | --- |
-| AI | Assistant, model neurons, orchestration helpers, protected direct-agent session | Ollama/Open WebUI or configured OpenAI model; current AppHost selects Gemma4 and Llama32 |
+| AI | Assistant, model neurons, orchestration helpers, protected direct-agent session | Ollama/Open WebUI or configured OpenAI model; current AppHost selects Gemma4 |
 | Execution | Execution and worker neurons, receipts, operations, liveness, dispatch and recovery | None |
 | UI | Chat, chat-turn worker, buttons, charts, diagrams, surfaces | Windows, web, or headless Flutter host; current AppHost selects Windows |
 | Time | Durable Timer neuron and scheduling facts | None |

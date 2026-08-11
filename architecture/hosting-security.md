@@ -17,7 +17,6 @@ storage (Azurite, data volume, persistent lifetime)
                                   |
 qdrant ---------------------------+
 ollama (data volume, persistent) -+-- gemma4:12b
-                                  +-- llama3.2
                                   +-- openwebui (persistent lifetime)
 
 kernel healthy ----------------------> flutter (Windows window host)
@@ -30,7 +29,7 @@ table. `WithDataVolume()` plus `WithLifetime(ContainerLifetime.Persistent)` reta
 across ordinary AppHost stop/start cycles.
 
 Ollama has the same data-volume and persistent-lifetime treatment so models are not downloaded on
-every run. The current AppHost selects Gemma4 and Llama32; other AI contract/model definitions in
+every run. The current AppHost selects Gemma4; Llama32 and other AI contract/model definitions in
 source are not selected resources. Open WebUI has a persistent container lifetime.
 
 Memory selects Qdrant and waits for it to become healthy. The current Qdrant projection does not
@@ -129,10 +128,10 @@ Kernel route, must be corrected before consent completes.
 
 ## Product state
 
-**Implemented now.** Persistent Azurite and Ollama, Qdrant selection, Gemma4/Llama32, Flutter window
-hosting, a separate Scripting client proof, cookie Identity, one-time bootstrap, roles, Development
-loopback impersonation, principal-scoped product resources, actor-bound OAuth, protected state,
-explicit anonymous routes, and HTTPS beyond loopback exist in source.
+**Implemented now.** Persistent Azurite and Ollama, Qdrant selection, Gemma4, Flutter window hosting,
+a separate Scripting client proof, cookie Identity, one-time bootstrap, roles, Development loopback
+impersonation, principal-scoped product resources, actor-bound OAuth, protected state, explicit
+anonymous routes, and HTTPS beyond loopback exist in source.
 
 **Known limitation.** Northbound `/mcp` has no authentication challenge or verified principal and
 must not be exposed as a trusted multi-user endpoint. Salesforce provider registration is still
