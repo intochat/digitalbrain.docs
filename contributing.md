@@ -4,118 +4,106 @@ title: Contributing
 
 # Contributing
 
-These are not style preferences. They are the rules that keep the framework's promises checkable.
-`CLAUDE.md` in the repository is the canonical working discipline; [Architecture](/architecture) is
-the plan of record.
+DigitalBrain documentation follows production source. A clear page that describes an obsolete
+system is still wrong, so accuracy and source ownership come before prose polish.
 
-## The gate
+## Change protocol
 
-Run it at every phase and before any completion claim:
+Use this sequence for every coherent documentation change:
+
+1. **Characterize.** Read the current owning production files, route maps, AppHost composition,
+   contract aliases, and relevant status report. Record the committed product head.
+2. **Make the minimal coherent change.** Update the owning page and every navigation/cross-link it
+   directly invalidates. Do not mix unrelated cleanup into the same commit.
+3. **Adversarially review your own diff.** Look for a current/future mix-up, an invented guarantee,
+   a renamed alias, a deleted module boundary, a stale command, and user-owned changes you did not
+   make.
+4. **Verify statically.** Run `npm run build`, stale-term scans relevant to the change, and
+   `git diff --check`. No automated test command is part of this phase.
+5. **Commit narrowly.** Stage only the reviewed documentation files and use a message that states
+   the page-level outcome.
+
+If a documented rule conflicts with production reality, stop the affected change and record the
+conflict in the relevant status/report page. Do not silently rewrite either side to make the diff
+look consistent.
+
+## Current source rules
+
+- Production source on committed `master` is behavioral truth. Ratified plans describe future
+  intent only when labelled **Ratified next**.
+- The former central automated-test project is intentionally deleted. Do not create or run tests
+  during this refit. Final hardening will design tests beside each owning module rather than one
+  central test project.
+- Existing wire aliases and serialized field IDs are permanent. Never rename, reuse, normalize, or
+  silently migrate them in documentation or code.
+- `DigitalBrain.Modules.Salesforce.Contracts` is a permanent product boundary for Salesforce neuron
+  and synapse interfaces. Generic MCP provider discovery does not make that project disposable.
+- Handwritten partial implementation classes are not part of the architecture. Source-generated
+  partial neuron interfaces are valid permanent contract wiring.
+- No package or dependency may be added without an explicit product-owner grant.
+- Current chat belongs to UI. Conversation and the Behavior host/install rail are future work, not
+  shipped components.
+
+## Product lifecycle while checking a claim
+
+The docs build does not require the product AppHost. If a source change has separately authorized a
+product build, stop Aspire first:
 
 ```powershell
-dotnet build DigitalBrain.slnx -c Release
-dotnet test DigitalBrain.slnx -c Release --logger "console;verbosity=minimal"
-npm --prefix docs test
-npm --prefix docs run build
+aspire stop --apphost src/Kernel/DigitalBrain.AppHost/DigitalBrain.AppHost.csproj
+dotnet build DigitalBrain.slnx -warnaserror
 ```
 
-**Never narrow the root test with `--filter`** — a project-scoped run has already missed a failing
-contract that the root run caught.
+Start local product smoke with `aspire start --apphost ...`; do not run the AppHost with
+`dotnet run`. Never run an automated test command, and never build while the AppHost or a
+DigitalBrain process still owns output files.
 
-## Three tiers of test
+For production Flutter source, use `flutter analyze lib` from each of
+`src/Modules/UI/Flutter/core`, `kit`, and `shell`. Analysis is static verification, not a test run.
 
-**L0 — contract.** No cluster. Public surface, vocabulary, wire goldens, and guarantees provable
-without hosting anything.
+## Documentation verification
 
-**L1 — in-process cluster.** Method-scoped `TestBrain` against a real multi-silo Orleans cluster and
-typed committed journals. This is where product behaviour is proven, and it is the default depth.
+From this repository:
 
-**L2 — hosted proof.** A real Aspire application: AppHost graph health and host proofs. Slow, few,
-load-bearing.
+```powershell
+npm ci --no-audit --no-fund
+npm run build
+git diff --check
+```
 
-### What a test must earn
+The production build is the required site gate. VitePress must find every navigation target and
+internal link. Do not disable dead-link checking to land an incomplete page set.
 
-> A test earns its place by failing when **product behaviour** breaks. It does not earn its place by
-> failing when the **build graph** changes.
+Before committing, also scan published pages for names removed from the current architecture. A
+negative explanation should use current vocabulary rather than preserving an obsolete symbol just
+to say it no longer exists.
 
-A pin on project counts, package counts, assembly references, or filesystem layout is theater: it
-restates the build system to itself, and it fails on upgrades that broke nothing. Prefer product
-types and product constants over test-local string tables, and runtime evidence over source-grep.
+## Writing current and future state
 
-If a guard's expected value is a magic number you would update rather than investigate, delete the
-guard.
+Prefer exact nouns from source: Workspace, Actor, Neuron, Synapse, Connection, Integration,
+Execution, Attempt, Operation, Blocker, Surface, and wire alias. Link to owning source directories
+instead of copying every schema into prose.
 
-## Writing a change
+When a page includes roadmap content, end it with distinct **Implemented now**, **Known
+limitation**, and **Ratified next** statements. Smoke evidence must say what was actually observed;
+it cannot turn provider login reachability into a claim that consent or token exchange succeeded.
 
-**Write the failing proof first.** Prefer an L1 test on `TestBrain` / `TestNeuron` with journal
-evidence. Watch it fail, then make it pass, then run the gate. When the behaviour is not coming yet,
-keep the proof and exclude it with `[Fact(Explicit = true)]` rather than deleting it. The root gate is
-never red.
+## Security and secrets
 
-**Grill your own diff before you commit.** Three questions, answered in the commit message:
+Never put a real API key, OAuth client ID/secret, token, cookie, password, state value, or provider
+payload in this repository. Examples use clearly synthetic local values. Document anonymous routes
+as an explicit allow-list and keep the unauthenticated northbound MCP boundary visible until source
+closes it.
 
-- What did I add that has no consumer today?
-- What did I claim without running a command to check?
-- What changed that I did not change?
+## Working with dirty repositories
 
-The third matters more than it sounds. This repository has been modified mid-session by other tools;
-if something moved that you did not move, say so and stop rather than sweeping it into your commit.
+Uncommitted files belong to their author. Inspect status before editing, preserve unrelated work,
+and do not stage a product-repository file as part of a docs commit. When production source changes
+after an inventory freeze, keep claims pinned to the recorded committed head until the new work is
+committed and deliberately re-characterized.
 
-**Evidence precedes assertion.** "The tests pass" is not a claim you may make without the output in
-front of you. If a step was skipped, say so. If something failed, say so with the failure.
+## Publishing
 
-## Comments are forbidden
-
-Comments are forbidden as narrative, boilerplate, or commented-out code, in any tracked C#,
-PowerShell, YAML, XML, or MSBuild file. No XML documentation comment restating a signature.
-
-A comment is an assertion nothing checks, and it rots silently while the code beside it changes. Put
-the meaning where it can be verified: in a name, a type, a test, or a smaller function —
-`[Fact(DisplayName = "…")]` is the supported way to make a test self-describing. If a piece of code
-needs a paragraph to explain, the paragraph is evidence the code is the wrong shape.
-
-Prose belongs in `README.md`, `CLAUDE.md`, and this website.
-
-## Naming
-
-Names carry the explanation. `committedOutgoing` beats `count` plus a comment saying what was
-counted. Reviewers are expected to push back on a name that needs help.
-
-## Dependencies
-
-Every version is pinned exactly in `Directory.Packages.props`. Central Package Management is on, so a
-floating range or wildcard is a build error, not a convention.
-
-## The security boundary
-
-Provider SDKs live only in their owning runtime module — today `DigitalBrain.Modules.AI`, with its
-Aspire integrations in `DigitalBrain.Modules.AI.Aspire.Hosting`. Kernel, AI Contracts, and every
-consumer-path package stay provider-free.
-
-An API key must never appear in the repository, in a test, in a sample, or in a publish manifest.
-
-## Deleting
-
-Delete before you add. Dead code, stale plans, superseded documents, and flaky tests are liabilities.
-A flaky test is worse than a missing one: it teaches the team to ignore red. If a scenario cannot be
-made deterministic, delete it and record why rather than retrying it in a loop.
-
-## Honesty
-
-Never tick a box that is not fully met, and never describe something as proven when it is merely
-implemented. Where a guarantee is incomplete, say so plainly — a limitation a user discovers
-themselves costs far more than one you wrote down.
-
-## CI and CD
-
-Two workflows. Nothing packs or pushes to NuGet.org until there is a real consumer and a versioning
-design.
-
-| Workflow | When | What |
-| --- | --- | --- |
-| [`ci.yml`](https://github.com/intochat/digitalbrain/blob/master/.github/workflows/ci.yml) | PR and push to `master` | `framework`: the root test on every event. `docs`: the docs gate on pull requests only. |
-| [`docs-pages.yml`](https://github.com/intochat/digitalbrain/blob/master/.github/workflows/docs-pages.yml) | Push to `master`, plus dispatch | The docs gate, then deploy `docs/.vitepress/dist` to https://digitalbrain.tech. |
-
-The website deploy does not wait on the framework job: a red framework check must not block Pages,
-though it should still block merge. Master runs the docs gate once, inside `docs-pages`, so the site
-is not double-built on every land.
+The Pages workflow builds on pull requests and on `main`; only non-pull-request runs deploy. Keep
+`public/CNAME`, `public/logo.svg`, `.github/workflows/pages.yml`, and the default VitePress theme
+unless a separately approved site-infrastructure change requires otherwise.

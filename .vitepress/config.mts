@@ -2,9 +2,10 @@ import { defineConfig } from 'vitepress'
 
 export default defineConfig({
   title: 'DigitalBrain',
-  description: 'Neurons, synapses, and TestBrain — durable agents for .NET on Orleans and Aspire',
+  description: 'Current handbook for the durable DigitalBrain workspace on Orleans and Aspire',
   base: '/',
   cleanUrls: true,
+  srcExclude: ['README.md', 'docs/**'],
   sitemap: {
     hostname: 'https://digitalbrain.tech'
   },
@@ -15,19 +16,43 @@ export default defineConfig({
   themeConfig: {
     logo: '/logo.svg',
     nav: [
-      { text: 'Quickstart', link: '/quickstart' },
-      { text: 'Concepts', link: '/concepts' },
+      { text: 'Start', link: '/getting-started' },
       { text: 'Architecture', link: '/architecture' },
-      { text: 'Specification', link: '/specification' }
+      { text: 'Modules', link: '/modules' },
+      { text: 'Status', link: '/status' },
+      { text: 'GitHub', link: 'https://github.com/intochat/digitalbrain' }
     ],
     sidebar: [
       {
-        text: 'Start here',
+        text: 'Start',
         items: [
-          { text: 'Quickstart', link: '/quickstart' },
-          { text: 'Concepts', link: '/concepts' },
-          { text: 'Architecture', link: '/architecture' },
-          { text: 'Specification', link: '/specification' }
+          { text: 'Overview', link: '/' },
+          { text: 'Run locally', link: '/getting-started' },
+          { text: 'Concepts', link: '/concepts' }
+        ]
+      },
+      {
+        text: 'Architecture',
+        items: [
+          { text: 'System map', link: '/architecture' },
+          { text: 'Kernel runtime', link: '/architecture/kernel-runtime' },
+          { text: 'Module system', link: '/architecture/module-system' },
+          { text: 'Chat and execution', link: '/architecture/chat-execution' },
+          { text: 'Hosting and security', link: '/architecture/hosting-security' }
+        ]
+      },
+      {
+        text: 'Product',
+        items: [
+          { text: 'Modules', link: '/modules' },
+          { text: 'Current status', link: '/status' }
+        ]
+      },
+      {
+        text: 'Reference',
+        items: [
+          { text: 'HTTP surface', link: '/reference/http-surface' },
+          { text: 'Wire contracts', link: '/reference/wire-contracts' }
         ]
       },
       {
@@ -44,7 +69,7 @@ export default defineConfig({
       provider: 'local'
     },
     footer: {
-      message: 'The v2 foundation is being rebuilt in the open. Nothing is published yet.',
+      message: 'Current-source handbook for the private, durable DigitalBrain workspace.',
       copyright: 'DigitalBrain contributors'
     },
     outline: {
