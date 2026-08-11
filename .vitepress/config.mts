@@ -37,6 +37,7 @@ export default defineConfig({
           { text: 'System map', link: '/architecture' },
           { text: 'Kernel runtime', link: '/architecture/kernel-runtime' },
           { text: 'Module system', link: '/architecture/module-system' },
+          { text: 'Scripting', link: '/architecture/scripting' },
           { text: 'Chat and execution', link: '/architecture/chat-execution' },
           { text: 'Hosting and security', link: '/architecture/hosting-security' }
         ]

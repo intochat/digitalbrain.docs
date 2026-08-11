@@ -45,10 +45,17 @@ The checked-in graph contains these logical resources:
 | `openwebui` | Persistent Ollama companion UI |
 | `kernel` | Authenticated product HTTP/SSE edge on `http://localhost:5080` |
 | `mcp` | Separate northbound MCP app on port `5000`, path `/mcp` |
+| `scripting` | Separate cluster client that generates and runs one file-based C# app, then completes |
 | `flutter` | Windows product shell, configured for shell `desk` and chat `main` |
 
-Kernel and MCP wait on the backing brain resources; Flutter waits on Kernel health. Model downloads
-can make the first start substantially slower than later starts.
+Kernel and MCP wait on the backing brain resources; Scripting and Flutter wait on Kernel. Model
+downloads can make the first start substantially slower than later starts.
+
+The `scripting` resource is intentionally short-lived. It writes a temporary `chart-point.cs`,
+runs it through `dotnet run --file`, connects that generated app to the Orleans cluster, fires one
+typed `ChartPoint`, attempts to remove the temporary directory, and exits. Its expected dashboard
+state is `Completed`, not `Running`. See [Scripting](/architecture/scripting) for the process and
+Roslyn boundary.
 
 ## 2. Bootstrap the first Owner
 
@@ -148,12 +155,15 @@ deferred to final hardening.
 
 **Implemented now.** Local Aspire composition, persistent Azurite and Ollama, cookie identity,
 one-time Owner bootstrap, Development loopback impersonation, principal-scoped chat/surfaces, and
-the Flutter window host are present in source. The 2026-08-11 smoke exercised bootstrap, a second
-user, private same-name chats, a completed slow turn, OAuth sign-in initiation, and SSE replay.
+the Flutter window host are present in source. The AppHost also launches a separate Scripting
+resource that generates and runs one file-based C# cluster client. The 2026-08-11 smoke exercised
+bootstrap, a second user, private same-name chats, a completed slow turn, OAuth sign-in initiation,
+and SSE replay; that smoke predates restoration of the Scripting resource.
 
 **Known limitation.** Northbound `/mcp` on port `5000` is unauthenticated and bypasses principal
 chat scoping. Salesforce OAuth cannot complete until the External Client App registers the exact
-local callback `http://localhost:5080/oauth/callback`.
+local callback `http://localhost:5080/oauth/callback`. Current Scripting is a fixed local proof, not
+the approved and restricted Behavior authoring/runtime boundary.
 
 **Ratified next.** Production hosting adds an HTTPS deployment boundary and the Conversation module
 replaces chat ownership in UI. The Behavior host and install rail are future work.

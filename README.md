@@ -45,6 +45,7 @@ Every status-bearing page uses three explicit labels:
 | `architecture.md` | System map and responsibility boundaries |
 | `architecture/kernel-runtime.md` | Neuron, journal, outbox, capability, and graph mechanics |
 | `architecture/module-system.md` | Contract/runtime/hosting composition |
+| `architecture/scripting.md` | Out-of-process cluster clients and generated file-based C# apps |
 | `architecture/chat-execution.md` | Authenticated chat through durable Execution |
 | `architecture/hosting-security.md` | Aspire graph, identity, OAuth, and host boundaries |
 | `modules.md` | Source-linked module inventory |

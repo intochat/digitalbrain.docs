@@ -44,12 +44,14 @@ features:
 
 **Implemented now.** The checked-in AppHost runs the Kernel, Flutter shell, a separate northbound
 MCP server, Azurite-backed Orleans durability, Qdrant vector memory, Ollama with Gemma4 and Llama32,
-and Google and Salesforce definitions over the shared MCP/OAuth rail.
+Google and Salesforce definitions over the shared MCP/OAuth rail, and a separate Scripting client
+that generates and runs one file-based C# app against the cluster.
 
 **Known limitation.** The separate northbound `/mcp` endpoint is not yet authenticated or scoped to
 the caller. Salesforce consent also requires the provider application's callback registration to
 match `http://localhost:5080/oauth/callback`. See [Current status](/status) before exposing either
 boundary.
 
-**Ratified next.** Conversation becomes its own domain module and approved Behaviors become the
-runtime-programmable product layer. Neither is presented here as shipped architecture.
+**Ratified next.** Conversation becomes its own domain module and approved Behaviors extend the
+current [Scripting proof](/architecture/scripting) into the runtime-programmable product layer. The
+general Behavior host is not presented here as shipped architecture.

@@ -96,6 +96,18 @@ Google and Salesforce are thin provider definitions over the shared SDK MCP/OAut
 Contracts projects remain module boundaries; in particular,
 `DigitalBrain.Modules.Salesforce.Contracts` is permanent product architecture.
 
+## Scripting
+
+**Scripting** is an out-of-process client boundary, not a module family. The current
+`DigitalBrain.Scripting` executable generates a file-based C# app that references existing client
+and Contracts projects, connects to the Orleans cluster with `DigitalBrainClient.ConnectAsync`,
+uses typed neuron/synapse vocabulary, and exits.
+
+The .NET SDK compiles the generated file through its Roslyn-backed file-based-app path. That does
+not load generated code into Kernel, add an `IModule`, or create new wire contracts. See
+[Scripting](/architecture/scripting) for the current proof and its relationship to future
+Behaviors.
+
 ## Execution vocabulary
 
 An **Execution** is one durable run toward a `Goal`. It is the product's only job/work mechanism.
@@ -140,14 +152,14 @@ rules.
 ## Product state
 
 **Implemented now.** Workspace identity, neurons, synapses, dual journals, outbox delivery,
-connection routing, modules, durable Execution, surfaces, and permanent aliases exist in production
-source.
+connection routing, modules, durable Execution, surfaces, permanent aliases, and a separate
+file-based C# Scripting client proof exist in production source.
 
 **Known limitation.** The northbound MCP host does not yet derive a verified actor, so its chat
 tools still use unscoped names and a fixed operator actor. The Kernel HTTP edge does perform
 principal scoping.
 
-**Ratified next.** **Conversation** becomes a domain module between UI and AI. **Behavior** becomes
-a named, approved, versioned composition of existing vocabulary running out of process with no
-ambient authority. Today the Flutter Behavior Studio is preview/demo-only: no Behavior host,
-approval/install rail, or execution path exists.
+**Ratified next.** **Conversation** becomes a domain module between UI and AI. **Behavior** extends
+the Scripting capability into a named, approved, versioned composition of existing vocabulary
+running out of process with no ambient authority. Today the Flutter Behavior Studio is
+preview/demo-only: no Behavior host, approval/install rail, or execution path exists.

@@ -43,6 +43,9 @@ look consistent.
 - No package or dependency may be added without an explicit product-owner grant.
 - Current chat belongs to UI. Conversation and the Behavior host/install rail are future work, not
   shipped components.
+- `DigitalBrain.Scripting` is a separate cluster-client executable, not a Kernel module. Describe
+  its current fixed generator separately from the ratified general Behavior host, and do not imply
+  an in-process `Microsoft.CodeAnalysis` dependency that source does not contain.
 
 ## Product lifecycle while checking a claim
 

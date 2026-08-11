@@ -1,8 +1,8 @@
 # Hosting and security
 
 The checked-in AppHost is the authoritative local composition. It creates one logical brain,
-projects its dependencies into Kernel, and gives the separate MCP app only the client references it
-needs to join Orleans.
+projects its dependencies into Kernel, and gives the separate MCP and Scripting applications the
+client references they need to join Orleans.
 
 ## Aspire resource graph
 
@@ -13,6 +13,7 @@ storage (Azurite, data volume, persistent lifetime)
   +-- journal blobs -------+       |
   +-- streams queues ------+       +--> kernel :5080
   +-- pubsub table --------+       +--> mcp :5000/mcp
+                                  +--> scripting (separate client; completes)
                                   |
 qdrant ---------------------------+
 ollama (data volume, persistent) -+-- gemma4:12b
@@ -20,6 +21,7 @@ ollama (data volume, persistent) -+-- gemma4:12b
                                   +-- openwebui (persistent lifetime)
 
 kernel healthy ----------------------> flutter (Windows window host)
+scripting ---------------------------> generated .cs -> Orleans client -> brain
 ```
 
 Azurite is the local implementation of the one storage profile. The same emulator supplies Orleans
@@ -39,6 +41,10 @@ Flutter receives `DIGITALBRAIN_UI_BASE` from Kernel's `http` endpoint plus shell
 `main`. The window launcher resolves the sibling `Flutter/shell` package and runs the Windows
 device. It waits for Kernel health before starting.
 
+Scripting receives `brain.AsClient()` and `DigitalBrain__Owner=dev`, waits for Kernel, generates a
+temporary file-based C# app, runs it, and exits. `Completed` is its expected Aspire state. It does
+not receive Kernel's HTTP URL or cookie-authenticated principal because it joins Orleans directly.
+
 ## Host boundaries
 
 Kernel binds the unproxied local product endpoint to port `5080`. It hosts auth, commands, SSE,
@@ -48,6 +54,12 @@ dashboard.
 `DigitalBrain.Mcp` is a separate ASP.NET Core process on port `5000` with stateless HTTP MCP at
 `/mcp`. It gets an Orleans client reference and waits for Kernel, but it does not share Kernel's
 authentication middleware.
+
+`DigitalBrain.Scripting` is also a separate process and cluster client, but it is a local trusted
+owner tool rather than an HTTP server. Its generated app inherits the projected cluster connection,
+uses existing Contracts, and calls `DigitalBrainClient.ConnectAsync`. The current proof has the
+ambient filesystem, process, and environment access of its host; the ratified restricted Behavior
+worker does not exist yet. See [Scripting](/architecture/scripting).
 
 Google and Salesforce are southbound server definitions inside the Kernel silo. Their OAuth
 parameters and one persisted 256-bit state-protection key are projected by AppHost. Provider tokens
@@ -118,14 +130,15 @@ Kernel route, must be corrected before consent completes.
 ## Product state
 
 **Implemented now.** Persistent Azurite and Ollama, Qdrant selection, Gemma4/Llama32, Flutter window
-hosting, cookie Identity, one-time bootstrap, roles, Development loopback impersonation,
-principal-scoped product resources, actor-bound OAuth, protected state, explicit anonymous routes,
-and HTTPS beyond loopback exist in source.
+hosting, a separate Scripting client proof, cookie Identity, one-time bootstrap, roles, Development
+loopback impersonation, principal-scoped product resources, actor-bound OAuth, protected state,
+explicit anonymous routes, and HTTPS beyond loopback exist in source.
 
 **Known limitation.** Northbound `/mcp` has no authentication challenge or verified principal and
 must not be exposed as a trusted multi-user endpoint. Salesforce provider registration is still
-misaligned. Local loopback convenience depends on a manually bootstrapped Owner.
+misaligned. Local loopback convenience depends on a manually bootstrapped Owner. Current Scripting
+is an unrestricted local proof, not the sandboxed, approved Behavior execution boundary.
 
 **Ratified next.** Close the northbound MCP identity boundary and deploy the product behind a real
-HTTPS edge. Conversation and Behavior will reuse verified actor and protected integration rails;
-they do not weaken them.
+HTTPS edge. Conversation and the out-of-process Behavior worker will reuse verified actor,
+Execution, and protected integration rails; they do not weaken them.

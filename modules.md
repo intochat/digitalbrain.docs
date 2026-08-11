@@ -4,6 +4,11 @@ The current product is a set of trusted modules composed into one Kernel. Each e
 the source-owned contract, runtime, hosting seam, and honest limitation. Remote MCP catalogs extend
 what an integration can do; they do not create new DigitalBrain contract types.
 
+`DigitalBrain.Scripting` does not appear in this inventory because it is not a module. It is a
+separate executable that generates file-based C# apps and connects them to the cluster as clients;
+see [Scripting](/architecture/scripting). Its generated apps consume the contracts listed below
+without joining Kernel composition.
+
 ## AI
 
 - **Projects:**
@@ -145,8 +150,9 @@ what an integration can do; they do not create new DigitalBrain contract types.
 ## Product state
 
 **Implemented now.** Every module and shared rail above is present in committed production source;
-the checked-in AppHost selects the resources described here. Salesforce Contracts and all existing
-wire aliases are retained product boundaries.
+the checked-in AppHost selects the resources described here. The separately hosted Scripting
+client consumes those module contracts but is not one of them. Salesforce Contracts and all
+existing wire aliases are retained product boundaries.
 
 **Known limitation.** Provider catalogs and consent depend on external systems, module composition
 is duplicated between Kernel and AppHost, Qdrant lacks the Azurite persistence profile, and

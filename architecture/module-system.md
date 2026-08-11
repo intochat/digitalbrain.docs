@@ -60,6 +60,30 @@ external resource.
 The AppHost list and Kernel `ComposedModules` list are currently duplicated. They must be reviewed
 together; source has no single authoritative catalog yet.
 
+## Scripting is not a module
+
+`DigitalBrain.Scripting` is a separate executable cluster client. It has no Contracts/runtime/
+Aspire-hosting project family, contributes no `IModule`, and is absent from Kernel's
+`ModuleAssemblies`. Its location under `src/Kernel` groups it with product hosts; it does not make
+the project part of the Kernel silo.
+
+The AppHost references the Scripting project only so Aspire can launch it as an independent
+resource. `brain.AsClient()` projects Orleans client configuration into that process. The generated
+single-file C# app then references `DigitalBrain.Aspire` plus the module Contracts it intends to
+use and joins the running cluster through `DigitalBrainClient.ConnectAsync`.
+
+That dependency direction is deliberate:
+
+```text
+generated app -> client/Aspire helpers + existing Contracts -> Orleans cluster
+Kernel silo   -> composed module runtimes
+```
+
+Generated code consumes permanent neuron and synapse interfaces; it does not become trusted module
+code and cannot introduce a runtime-generated contract assembly. See
+[Scripting](/architecture/scripting) for the generator, Roslyn/file-based-app path, and current
+limitations.
+
 ## Current module roles
 
 | Module or rail | Runtime contribution | Hosting contribution |
@@ -98,7 +122,8 @@ may invent a neuron type or bypass exact contract resolution.
 
 **Implemented now.** Reflected manifests, explicit contract/implementation assembly lists,
 parameterless module hooks, AppHost projections, and the current module families are wired into the
-Kernel and checked-in AppHost.
+Kernel and checked-in AppHost. The Scripting executable is separately wired as a client resource,
+not added to either module catalog.
 
 **Known limitation.** Kernel and AppHost maintain two catalogs. Google and Salesforce are thin
 generic-MCP definitions, so provider availability still depends on live provider credentials and
@@ -106,5 +131,5 @@ catalog reachability. Salesforce callback registration remains externally mismat
 smoke.
 
 **Ratified next.** Composition gets one authoritative seam. Conversation becomes a separate module,
-while Behavior remains runtime data and approved code—not a hot-loaded Module or dynamically
-invented contract assembly.
+while Behavior remains runtime data and approved single-file C# code—not a hot-loaded Module or
+dynamically invented contract assembly.
