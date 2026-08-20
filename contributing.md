@@ -107,6 +107,7 @@ committed and deliberately re-characterized.
 
 ## Publishing
 
-The Pages workflow builds on pull requests and on `main`; only non-pull-request runs deploy. Keep
-`public/CNAME`, `public/logo.svg`, `.github/workflows/pages.yml`, and the default VitePress theme
-unless a separately approved site-infrastructure change requires otherwise.
+The Pages workflow builds on pull requests and on `main`; only non-pull-request runs deploy to
+`https://intochat.github.io/digitalbrain.docs/`. Keep `public/logo.svg`, `.github/workflows/pages.yml`,
+VitePress `base: '/digitalbrain.docs/'`, and the default theme unless a separately approved
+site-infrastructure change requires otherwise.

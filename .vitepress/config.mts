@@ -1,16 +1,18 @@
 import { defineConfig } from 'vitepress'
 
+const siteBase = '/digitalbrain.docs/'
+
 export default defineConfig({
   title: 'DigitalBrain',
   description: 'Current handbook for the durable DigitalBrain workspace on Orleans and Aspire',
-  base: '/',
+  base: siteBase,
   cleanUrls: true,
   srcExclude: ['README.md', 'docs/**'],
   sitemap: {
-    hostname: 'https://digitalbrain.tech'
+    hostname: 'https://intochat.github.io/digitalbrain.docs/'
   },
   head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' }],
+    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteBase}logo.svg` }],
     ['meta', { name: 'theme-color', content: '#080a12' }]
   ],
   themeConfig: {

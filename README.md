@@ -1,6 +1,6 @@
 # digitalbrain.docs
 
-The VitePress handbook published at [digitalbrain.tech](https://digitalbrain.tech). Product source
+The VitePress handbook published at [intochat.github.io/digitalbrain.docs](https://intochat.github.io/digitalbrain.docs/). Product source
 lives in [intochat/digitalbrain](https://github.com/intochat/digitalbrain); this repository owns the
 public explanation, navigation, and GitHub Pages build only.
 
@@ -60,5 +60,6 @@ history, not alternate product architecture.
 ## Publishing
 
 `.github/workflows/pages.yml` installs with Node.js 24, runs the VitePress production build on pull
-requests and pushes to `main`, and deploys non-pull-request builds to GitHub Pages. The custom domain
-is retained in `public/CNAME`; the logo remains in `public/logo.svg`.
+requests and pushes to `main`, and deploys non-pull-request builds to GitHub Pages at
+`https://intochat.github.io/digitalbrain.docs/`. VitePress `base` is `/digitalbrain.docs/` so asset
+and page URLs resolve on the default project-pages host. The logo remains in `public/logo.svg`.
