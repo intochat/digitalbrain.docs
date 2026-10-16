@@ -1,5 +1,23 @@
 # Hosted runtime boundary implementation
 
+## Current boundary, 2026-10-16
+
+This section supersedes the historical partial/unavailable-driver notes below. Public runtime changes are provider-neutral; Azure allocation, storage snapshots, billing, credentials custody and orchestration remain private in IntoChat Cloud. The runtime starts locally without a cloud dependency unless explicitly configured for hosted mode.
+
+- `/runtime/management/v1` uses per-allocation mTLS controller pins and exact account/brain/runtime/protocol/version checks. Runtime registration reuses the public identity/brain lifecycle. Readiness additionally requires durable journal health and storage attachment; a capability string is insufficient.
+- Cloud privately provisions a digest-pinned Azure Container App, isolated Azure Files share/quota and per-allocation server/controller/workspace/producer credentials. Owned deterministic names and full specification checks recover lost responses. No cloud JWT signing key reaches the runtime.
+- Workspace launch uses a one-minute, one-time 256-bit code in a cleared URL fragment. A five-minute absolute host-only session is bound to cloud user/session and runtime. Durable hashed grants, cloud authorization rechecks and revocation workers revoke access; expiry/revocation cancels active streams. A dedicated wildcard HTTPS proxy strips cloud credentials and cannot forward management paths. Active/recovery flags, current entitlement and allocation quota are checked at admission and during proxied work.
+- Hosted identity, vault/platform state, integrations and reminders use encrypted durable journals and single-writer locking. The runtime exposes a recovery-only boot path that opens/decrypts storage without starting Orleans, reminders or module background workers. Export is owner-authorized through cloud and mTLS, excludes credentials/platform secret state, and decodes concrete persisted application types.
+- Private backup stops execution before the Azure Files snapshot; restore copies snapshot and custody into a separate allocation. Upgrade requires an approved digest, exact version and readable storage format. Candidates remain recovery-only until durable promotion; activation confirms the recovery process stopped before starting the normal revision. Failure never implies an image-only storage rollback.
+- Suspension and quota reduction block new work and durably stop allocations. Deletion waits for explicitly configured retention and confirmed provider absence before dropping custody; billing/audit history remains. Recovery export remains possible while ordinary execution is suspended.
+- Hosted AI execution is bounded at the actual provider client, including direct workspace requests: shared concurrency, deadline, output-token ceiling and managed gateway budget reservation. Azure configuration enforces CPU/memory/file-share limits. Runtime provider usage receipts and private Azure Monitor measurements use distinct typed immutable records; missing data remains an operator discrepancy.
+
+Local evidence: public platform tests 248/0/0; AI tests 209/0/0; runtime OS Release build succeeds. Cloud integration tests exercise real PostgreSQL and actual local HTTPS/mTLS transport, with external Azure/model/payment doubles confined to tests. Full current verification, commits and acceptance classification are maintained in `intochat-cloud-migration-status.md`.
+
+Awaiting external operational validation: approved runtime artifact/version; Azure identity/private network/storage; wildcard DNS/TLS; measured SMB single-writer/quotas, snapshot/restore/export, CPU/memory limits and recovery objectives on that deployment. No infrastructure was deployed and no production data was migrated or deleted.
+
+## Historical boundary records
+
 Checkpoint: 2026-10-15. This records a partial C1 implementation, not hosted-product acceptance.
 
 ## Existing capabilities reused
@@ -31,10 +49,20 @@ The caller MUST obtain target, expected version and credential from a trusted al
 ## Remaining engineering and operational gates
 
 - C1 remains partial: machine enrollment/authentication, lifecycle capabilities, storage-aware readiness, supported image digest selection and release compatibility are unfinished implementation work. The exact-version comparison exists; no production runtime artifact has been approved/pinned.
-- C2 needs a durable brain/allocation/operation registry, quota reservation, provider Ensure/recovery and worker leases. No fake successful allocation or Ready state exists. Provider credentials and external deployment validation require separate operational access/authorization; registry/driver code is still engineering work, not solely an external blocker.
+- C2 now has a durable brain/allocation/operation registry, atomic quota checks, idempotency, fenced worker leases and persisted allocation recovery. Fifteen PostgreSQL cases with test-only drivers validate orchestration. The registered production driver is deliberately unavailable: provider Ensure/lookup, scoped durable storage/secrets and an authenticated runtime readiness adapter remain engineering work. Provider credentials and external deployment validation additionally require operational access/authorization. No production Ready state is fabricated.
 - C3 needs one-time audience-bound exchange, runtime sessions/revocation and allocation-level isolation. Observation ownership tests are not HOST-03 acceptance for that future flow.
 - C4 needs durable mount/blob/key ownership, coordinated consistent backups, restore compatibility and measured recovery. Existing storage primitives are not an implemented backup protocol.
 - C5 and U2 depend on actual execution-control/enforcement hooks. Neither a capability string nor the private ledger enforces runtime CPU, memory, concurrency or storage limits.
 - Commercial refund/retention/pricing/legal decisions and production rollout evidence remain separate operator/product gates.
 
 No live provider call, infrastructure deployment, persistent database migration, secret disclosure or production deletion is part of this implementation checkpoint.
+
+## 2026-10-16 machine and workspace extension
+
+This supersedes the interim private owner-cookie client described above. Public self-host owner observation remains; hosted management uses `/runtime/management/v1` with TLS client-certificate authentication and a configured per-allocation SHA-256 pin. Requests do not supply an account/brain owner. Ensure reuses IIdentityClient and brain birth; observation reports registration only, never storage/execution readiness.
+
+Private cloud client requires exact account/brain/runtime/version/protocol matches and a trusted HTTPS origin from the allocation registry. Operator-controlled per-runtime PEM controller credentials are loaded from `Hosting:Management:CredentialDirectory`; they are not a platform JWT key. Provisioning/rotation of those credentials remains unfinished allocation-driver work.
+
+Workspace issue/revoke is available only through the machine boundary. Browser launch consumes a 256-bit one-time code from a URL fragment, clears the fragment immediately, and posts to the same HTTPS origin. Exchange expires in one minute, the nonrenewing cookie in five minutes. Durable hashed grants bind user/session/account/brain/runtime, serialize one-time consumption across processes, and are checked on each cookie validation. Cloud records a durable lease before issuing, rechecks authorization after I/O, and reconciles revoked authorization from DB state with bounded parallel work. No claim is made that existing long-running work is interrupted; U2 remains unfinished.
+
+Hosted HTTP scope enforcement uses canonical route metadata; IBrainAccess additionally enforces scope for body/gRPC requests. Registration, sign-in, identity switching and brain creation cannot escape the configured hosted brain. Runtime tests: 240 passing platform cases, including a real local HTTPS/mTLS flow; cloud tests: 93 passing including disposable PostgreSQL authorization/revocation races. Provider allocation, storage/backup/lifecycle, actual execution enforcement and deployment acceptance remain incomplete as detailed in the status document.
