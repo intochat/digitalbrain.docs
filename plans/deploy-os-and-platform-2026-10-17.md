@@ -12,6 +12,8 @@
 
 ## State on 2026-10-17 (evidence)
 
+Execution status 2026-10-18: Tasks 1 to 8 implemented and reviewed; os PRs #186, #187; platform PRs #1 to #5 (stacked). Operator steps O1 to O6 and the merge order below are what remains.
+
 - `intochat/os` master `f812121d1`: PR #185 merged. Workflows present: `ci.yml`, `flutter.yml`, `e2e.yml`, `deploy.yml`. `VERSION` = `0.1.0`, `VersionPrefix` reads it, no `VersionSuffix`, NU5104 suppressed. `Container.pubxml` already points at `ghcr.io` / `intochat/digitalbrain-kernel`. `ci` on master is red on 17 pre-existing test failures; format, build and pack are green.
 - The kernel does not serve the Flutter web build. No `UseStaticFiles`, `wwwroot` or `build/web` reference exists in the .NET code. Locally Aspire builds `src/DigitalBrain.Modules/Google/Flutter/app/shell/Dockerfile` (nginx, context `app/`) and bind-mounts `/usr/share/nginx/html/config.json` so the kernel URL resolves at serve time (`ShellServedConfig.cs:10`). Production used Azure Static Web Apps with the kernel URL baked in by `--dart-define=DIGITALBRAIN_UI_BASE`.
 - Os repo variables: `AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `DOCKERHUB_USERNAME`; secrets `AZURE_STATIC_WEB_APPS_API_TOKEN`, `CHECKPOINT_KEY`, `DOCKERHUB_TOKEN`, `PULUMI_PASSPHRASE`; environment `production` with `AZURE_*`, `AZURE_CONTAINERAPP_NAME`, `AZURE_RESOURCE_GROUP`, `KERNEL_PUBLIC_URL`.
@@ -52,6 +54,9 @@ Platform builds `intochat-distribution` (os packages + private modules) in `depl
 - **O2** Delete from os after Task 1 merges: variables `AZURE_CLIENT_ID`, `AZURE_SUBSCRIPTION_ID`, `AZURE_TENANT_ID`, `DOCKERHUB_USERNAME`; secrets `AZURE_STATIC_WEB_APPS_API_TOKEN`, `DOCKERHUB_TOKEN`; environment `production` (`AZURE_CONTAINERAPP_NAME`, `AZURE_RESOURCE_GROUP`, `KERNEL_PUBLIC_URL`). `CHECKPOINT_KEY` and `PULUMI_PASSPHRASE` are unknown to any os workflow; confirm before deleting.
 - **O3** After the first `publish.yml` run: in GitHub Packages settings of each `DigitalBrain*` package and each container, grant repository `intochat/platform` read access (org packages are private while os is private). `gh api` cannot do this with the current token scopes.
 - **O4** Tag `v0.1.0` after Task 3; create a platform GitHub release after Task 7.
+- **O5** Pulumi production stack config before the first `pulumi preview`/`up` with the distribution app: `pulumi config set --secret tripradar:ghcrReadToken <PAT with read:packages>` (the os images are private until the public flip; remove the check and the config after it) and `pulumi config set tripradar:usePlaceholderImages false` (the default `true` would run the placeholder image behind the distribution ingress and fail the `/health` smoke check). The bootstrap `pulumi up` with `IMAGE_TAG=bootstrap` predates this plan for api and jobs and now also applies to the distribution; expect it to point at non-existent `:bootstrap` tags until a real tag is rolled out in the second phase.
+- **O6** After `v0.1.0` exists: `docker run --rm ghcr.io/intochat/os-ui:0.1.0 ls /usr/share/nginx/html | grep -c config.json` must print `0` (Review Focus 3), and Task 6 must be re-verified against the real feed (`dotnet restore IntoChat.slnx` on a clean clone of platform with `NUGET_GITHUB_*` set), because it was verified against a local pack of os.
+- **Merge order** (platform): PR #1 (Task 4) → PR #4 (Task 6) → PR #2 (Task 5) → PR #3 (Task 7) → PR #5 (Task 8). PR #3's `deploy-prod.yml` publishes `src/IntoChat.Distribution`, which exists only after PR #4. PR #4 and PR #5 both insert into `IntoChat.slnx` after the DeploymentKit line; keep both hunks. Os: PR #186 then PR #187, in any order.
 
 ## Global Constraints
 
