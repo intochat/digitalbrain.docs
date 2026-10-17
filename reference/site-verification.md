@@ -4,6 +4,14 @@
 
 ## Artifact and preservation
 
+### Implementation-inventory correction · 17 October 2026
+
+The readiness landing page was rebuilt around feature implementation, with independent local/external and production verification fields. Added four inventory pages (cloud, AI providers, runtime/clients, all applications), expanded the existing connectors page, replaced the broad matrix with a source coverage map, and corrected the billing page to foreground implemented Stripe services. Navigation and the homepage readiness section now point to these inventories.
+
+Fresh documentation checks passed: `npm run typecheck`, `npm test` (3 tests), `npm run lint`, `npm run build`, and `npm run check:links` (**66 HTML pages, 4,277 internal links/fragments**). This supersedes the earlier 62-page link count below. The existing diagram chunk-size advisory remains. No product test was rerun or promoted to a live/production result by this correction.
+
+Browser verification confirmed the new Stripe/provider statuses and navigation on the rebuilt preview. The overview and all five detailed inventory pages had no document-level horizontal overflow at 390×844 (375 CSS-pixel content width); wide tables scroll within the page. Desktop overview was visually reviewed at 1440×900. All 20 application rows rendered. This is documentation UI verification, not execution of those applications.
+
 The existing VitePress project and `/digitalbrain.docs/` base path were retained. The homepage is a custom Vue component with exactly four top-level sections and stable anchors: `vision`, `ecosystem`, `priorities`, `readiness`. Three primary navigation destinations lead to Product Vision, Product Roadmap and Implementation Readiness.
 
 Existing documentation routes remain available. The previous homepage is preserved as [the earlier overview](../product/previous-overview.md), with relative links adjusted for its new location. Earlier documents display a notice linking to the current synthesis. Pre-existing working changes and deletions were not reverted. No application source change, commit, push or external publication was made by this task.

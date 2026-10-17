@@ -1,10 +1,31 @@
 # Usage, ledger and actual payments
 
-The implementation contains meaningful metering, price lists, fees and an account ledger. **It does not establish completed payment collection or a hard prepaid spending limit.** This distinction is essential before a pilot uses platform-funded providers.
+**Stripe billing is implemented in IntoChat Cloud.** Runtime metering, price lists, fees and an account ledger are implemented in DigitalBrain. Live Stripe settlement and production operation were not tested in this audit. A hard prepaid spending guarantee across all runtime calls is a separate, unresolved acceptance question.
 
 Evidence: DigitalBrain `faddacfc3b5e7cf3a74adfd0efcf8a17e277540b`, 17 October 2026. Source prefixes: **Platform** = `src/DigitalBrain.Platform/DigitalBrain.Platform`; **AI** = `src/DigitalBrain.Modules/AI/DigitalBrain.Modules.AI`.
 
-## Current accounting chain
+## Stripe implementation inventory
+
+Cloud source root: `intochat-cloud/src/IntoChat.Server.Infrastructure/Services/`. These rows describe existing code, independently of live verification. Full routes, wiring and test evidence are in the [cloud inventory](./cloud-inventory).
+
+| Capability | Implementation and source | Availability / verification | Production |
+|---|---|---|---|
+| Account checkout | **Implemented** — `Billing/CloudCheckoutService.cs`, checkout operation persistence and recovery | Active cloud path; no live checkout run | Not verified |
+| Stripe customer creation | **Implemented** — `Billing/CloudBillingProvider.CreateCustomerAsync`; account/operation metadata and idempotency key | Requires Stripe mode/key configuration; no provider call run | Not verified |
+| Card subscription creation | **Implemented** — `CloudBillingProvider.CreateSubscriptionAsync`; price, currency, interval and mode validation, incomplete subscription and confirmation secret | Card flow present; live confirmation not exercised | Not verified |
+| Signed webhook receipt | **Implemented** — `Billing/CloudBillingWebhookReceiver.cs`; signature/mode verification, encrypted payload and durable inbox deduplication | Registered cloud webhook handler; database-dependent test scope has skips | Not verified |
+| Subscription reconciliation and entitlements | **Implemented** — `Billing/BillingReconciliationService.cs`, `BillingEntitlementService.cs`, `CloudBillingWorker.cs` | Worker and durable state present; provider reconciliation not run live | Not verified |
+| Checkout recovery | **Implemented** — `Billing/CheckoutRecoveryService.cs` and provider customer/subscription lookups | Recovery code present; external crash/retry scenario not exercised | Not verified |
+| Invoice listing | **Implemented** — `Billing/AccountBillingService.InvoicesAsync`, Stripe gateway | Account membership checked; no live invoice fetched | Not verified |
+| Payment-method list/default/remove | **Implemented** — `AccountBillingService.PaymentMethodsAsync`, `ChangePaymentMethodAsync`; ownership and required-card checks | Active account APIs; no live card mutation run | Not verified |
+| Cancel at period end | **Implemented** — `AccountBillingService.RequestActionAsync`, outbox, `CloudBillingProvider.CancelAtPeriodEndAsync` | Active cancellation workflow; provider outcome not exercised | Not verified |
+| Refund review request | **Implemented** — account action `refund.review` stored as `needs_review` | Review queue is implemented; this endpoint does not itself execute a refund | Not verified |
+| Older direct refund execution | **Implemented, retained legacy** — `Payments/RefundService.cs` calls Stripe and adjusts user tier | Older payment mutation routes are marked retired; not the active account refund workflow | Not verified |
+| Stripe-hosted customer portal | **Not found in inspected scope** | Custom account billing UI exists; do not label it a Stripe hosted portal | Not verified |
+
+Cloud tests previously executed at the recorded snapshot: **120 passed, 66 skipped**; frontend: **447 passed**. These totals do not establish that each Stripe path passed a provider-backed test. The skipped database suite and exact test names are recorded in the [cloud inventory](./cloud-inventory) and [verification log](./verification).
+
+## Current accounting and payment paths
 
 ```mermaid
 flowchart LR
@@ -14,10 +35,13 @@ flowchart LR
   B --> L[LedgerGrain charge]
   C --> U[UsageGrain aggregates]
   U --> V[Usage UI]
-  L -. proposed integration .-> I[Invoices and payment reconciliation]
+  Q[Cloud checkout] --> S[Stripe subscription and card confirmation]
+  S --> W[Signed webhook inbox]
+  W --> R[Cloud reconciliation and entitlements]
+  L -. cross-system reconciliation unverified .-> R
 ```
 
-**Mixed diagram:** solid edges reflect inspected code; the dashed payment integration is proposed, not verified. A ledger credit is an internal entry, not proof of money received.
+Solid edges represent implemented runtime accounting and cloud payment paths. The dashed edge marks **unverified cross-system reconciliation**, not an assertion that invoices, checkout or reconciliation services are missing. A runtime ledger credit is an internal entry, not by itself proof of money received.
 
 | Layer | Implementation and observed behavior | Limit |
 |---|---|---|
@@ -40,13 +64,13 @@ flowchart LR
 
 These are static findings, not claims of observed financial loss. The passed Platform tests validate tested behaviors; they do not remove these product constraints.
 
-## Payments: inspected scope
+## Runtime and cloud boundaries
 
-A search for Stripe, invoice, checkout and PaymentIntent symbols in source did not identify a completed payment route in the active OS composition. A Monnet provider and payment contracts exist under `src/DigitalBrain.Modules/Monnet`, but `OsCatalog` excludes `MonnetModule`. That code must not be presented as integrated IntoChat checkout.
+Stripe checkout belongs to the cloud control plane, not the active DigitalBrain OS module composition. A separate Monnet provider and payment contracts exist under `src/DigitalBrain.Modules/Monnet`, but `OsCatalog` excludes `MonnetModule`; that module is not the active cloud Stripe implementation.
 
-This search conclusion is limited to **DigitalBrain**, not the whole product. The companion cloud audit found `CloudCheckoutService`, `CloudBillingWebhookReceiver`, `BillingReconciliationService`, `ResourceBudgetService` and `ManagedModelGateway` in `intochat-cloud/src/IntoChat.Server.Infrastructure/Services/`. Cloud checkout, resource admission and managed inference code are present. Their deployment, payment settlement and coverage of every runtime inference path are unverified. Do not infer that cloud gateway controls automatically protect direct runtime provider calls. See [repository boundaries](../reference/repositories) and [evidence](../reference/evidence).
+Cloud resource admission and managed inference are also implemented through `ResourceBudgetService` and `ManagedModelGateway`. Their deployment and coverage of every runtime inference path remain unverified. Do not infer that cloud gateway controls automatically protect direct runtime provider calls. See [repository boundaries](../reference/repositories) and [evidence](../reference/evidence).
 
-The founder's separately mentioned billing implementation is unavailable to this audit. Whether it is the same implementation as the inspected cloud services remains unconfirmed. It is not an additional prerequisite for a controlled deployment without platform-funded spend.
+The assessment above is based on the actual cloud billing source. It does not require an unidentified additional billing implementation to recognize Stripe as implemented.
 
 ## Acceptance before monetization
 

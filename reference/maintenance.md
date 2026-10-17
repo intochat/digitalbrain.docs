@@ -14,7 +14,7 @@ Update the evidence before changing a readiness label. A new class, registration
 
 ## Readiness labels
 
-Use **verified working in the tested environment** only with a named passing behavioral check. Use **implemented but not executed** for inspected paths without current execution. **Partially implemented**, **stub/mock/demo**, **not found in inspected scope**, **blocked by external dependency**, and **unknown** communicate different limitations and should not be collapsed into a percentage.
+Record four independent fields: **implementation**, **wiring**, **local/external verification**, and **production verification**. Use **implemented** when concrete source behavior exists, even if no live or production test was run. Use **partial** only when a named behavior is incomplete, and state the missing part. Keep **stub/schema only** and **not found in inspected scope** distinct. Mark optional, excluded or retired wiring separately from implementation. Use **verified in the tested environment** only with a named passing behavioral check; default production evidence to **not verified in this audit** unless dated deployment evidence exists. Do not infer that a feature has never been tested by its owners.
 
 Registration, UI presence, route reachability, tested behavior, local operation, deployment and production operation are separate observations. When a test skips, retain the skip in totals. Historical successful reports remain historical until rerun with equivalent environment and scope.
 

@@ -1,33 +1,60 @@
-# Capability-readiness matrix
+# Project coverage and readiness method
 
-This matrix records **capability evidence, not a completion percentage**. The denominator of a production-readiness score has not been defined, so none is invented. Snapshot: DigitalBrain `faddacfc3b5e7cf3a74adfd0efcf8a17e277540b`, 17 October 2026. Cloud evidence is explicitly distinguished and linked.
+The readiness assessment is an implementation inventory of **the complete inspected product across both repositories**, not just a list of release risks. Detailed tables separate feature implementation, active wiring, local tests and production verification. This page maps source areas to those tables so that an entire project cannot disappear behind a generic “billing” or “models” row.
 
-Statuses: **Verified in tested environment** means only the named executed check; **Implemented but not executed** means static evidence; **Partial** means mechanisms exist but the intended outcome has gaps; **Blocked** names an unavailable verification dependency; **Not found** is limited to the inspected scope. Risk P0 blocks the relevant public/paid/untrusted release gate, P1 blocks broader reliability acceptance, P2 improves operations. These are proposed priorities.
+## Source coverage map
 
-| Capability and user outcome | Implementation locations / symbols | State and verification | Gap / dependency / risk | Acceptance criterion |
-|---|---|---|---|---|
-| Register and sign in to own workspace | Platform `Identity/{IdentityEndpoints,PrincipalPasswords,AccountSession}` | Verified component suite; browser journey unexecuted | Actual TLS/cookies, abuse controls, recovery; P0 before public access | Two accounts sign in, switch only permitted brains, revoke sessions and persist across restart |
-| Tenant and app permissions | `DirectoryBrainAccess`, `GrantCallFilterStage`, hosted runtime scope | Verified component suite | Full HTTP/gRPC/stream/export adversarial coverage unknown; P0 | Cross-account identifiers and revoked grants denied on every transport |
-| Workspace and shared context | OS `OsWorkspaceRoot`, Flutter `workspace_app`, `features/os/Workspace` | Implemented; selected shell checks in verification log | Cold start and default-install errors; P1 | Launch bundle opens after fresh account and restart; failures visible |
-| Chat and routing | Flutter `ComposerNeuron`, AI `AgentTurnLoop`, `RouterNeuron` | Implemented but live providers not executed | Models, credentials, quality evaluation; P1 | Bounded useful result with cancellation, tool grants and cost receipt |
-| Discover/install/remove | Apps `MarketplaceEndpoints`, `AppInstaller`, `AppNeuron.Delete` | Verified Apps component suite | Full browser and retention effects unverified; P1 | Second account installs selected source, runs, removes and sees declared data effects |
-| Module composition | OS `OsCatalog`; Aspire `ModuleHostingScan` | 21 registrations confirmed; OS build passes | Registration ≠ readiness of external service; P1 | Minimal selected module profile starts from cold state |
-| Defaults | `OsAppsHosting`, `OsDefaults.Created` | 15 entries confirmed; install loop inspected | Per-app failures tolerated; P1 | Required pilot apps individually reach usable state |
-| Generation | Apps `Creator`, `AppWorkQueue` | Partial; Apps tests pass with fixtures | Live model quality, process-local workers; P1 | Generate, compile, run and recover an interrupted build without ambiguous state |
-| Publication/versioning | `AppNeuron.Publish`, `ExportRelease`, `InstallPublication` | Implemented; Apps suite verified | External developer/review operations unproven; P1 | Immutable version/digest survives publisher edits; recipient installs exact release |
-| Runtime retry/recovery | CSharp `BrainRuntimeNeuron`, sandbox `Session` | Implemented but full fault injection unexecuted | Container/pool and external idempotency; P1 | Kill worker during action; reconcile safely without duplicated external write |
-| Cancellation | Tokens, session retirement, bounded runtime paths | Partial | Queue and some router calls use no cancellation token; P1 | User cancel stops new work and shows already incurred cost |
-| Memory and provenance | `features/os/Memory/Memory.cs`, journal | Implemented but live retrieval unexecuted | Postgres/vector/embedding providers and retention; P1 | Result links source/version; deleted source follows declared index policy |
-| Connector credentials | Platform `OAuthLoginFlow`, `SecretSealer`, connection bindings | Verified component suite with stubs | Provider consent, expiry and revocation; P0 for sensitive connector | Cross-user token access denied; refresh/revoke tested with test account |
-| MCP | `McpServerNeuron`; standalone MCP host | Implemented but live endpoint acceptance unexecuted | Auth, egress, retry semantics; P0 for arbitrary endpoints | Authorized tools only; blocked private destinations; no duplicate write on retry |
-| Generated-code sandbox | `SessionRunner`, sandbox endpoints and Dockerfile | Partial verification | Effective network/process/resource isolation unknown; P0 for untrusted code | Adversarial test cannot read host/other tenant data or exceed hard quotas |
-| Metering and prices | `MeteringChatClient`, `CostMeter`, `ModelPriceList` | Implemented; Platform tests verified | Post-response errors swallowed, unknown price zero; P0 for funded pilot | Provider reconciliation and explicit unpriced behavior |
-| Ledger and credits | `LedgerGrain` | Verified component suite | Bounded dedup, negative balance permitted; P0 for prepaid promise | Durable idempotency and reserve/settle under concurrent traces |
-| Actual payments | Cloud checkout/webhook/reconciliation services | Implemented; no settlement executed | Provider config, reconciliation, invoice responsibility; P0 for sales | Test-mode payment, duplicate webhook/refund and ledger reconciliation pass |
-| Concurrent spending | Runtime `TraceBudgetGrain`; cloud `ResourceBudgetService` | Partial cross-system evidence | No proof all runtime calls pass gateway; P0 | Concurrent traces cannot exceed declared payer ceiling and direct bypass is denied |
-| Observability | Activity sources, runtime run facts, health endpoints, service defaults | Implemented | Production dashboards, alert ownership and SLOs unknown; P1 | Trace a user request through provider, runtime, usage and failure alert |
-| Deployment and migrations | AppHost, Dockerfiles, workflows, hosted storage guards | OS build verified; deployment unexecuted | NU1902 gate; stale cloud CI target; secrets/storage; P0 | Pinned release deploys to controlled environment, health and scope checks pass |
-| Backup/restore/rollback | `BrainLog`, `HostedRecoveryHost`, cloud lifecycle | Partial; local storage tests verified | No deployed restore drill; export omits authority/credentials; P0 for real data | Restore encrypted state and keys to isolated target; verify records and rollback compatibility |
-| CI and dependency health | `.github/workflows/ci.yml`, `global.json` | Partial: selected suites pass, OS suite blocked | MessagePack advisory; local SDK differs from CI pins; P1 | Clean restore/build/tests on intended release environment without suppression |
+| Repository / source area | Behaviors assessed | Detailed inventory |
+|---|---|---|
+| Cloud API and application contracts | HTTP routes, authentication, account access, checkout, billing, admin and runtime access | [Cloud inventory](./cloud-inventory) |
+| Cloud `IntoChat.Server.Infrastructure` | Identity providers, Stripe, reconciliation, budgets, managed models, provisioning, lifecycle, database, jobs and gateways | [Cloud inventory](./cloud-inventory) and [billing analysis](./billing) |
+| Cloud domain, DTO, Comms and shared projects | Account/resource/payment records, transport contracts and supporting implementation | [Cloud inventory](./cloud-inventory) |
+| Cloud `IntoChat.WebUI` | Sign-in, account/resource management, checkout, invoices/cards, cloud settings and admin UI | [Cloud inventory](./cloud-inventory) |
+| Cloud `IntoChat.DeploymentKit`, `IntoChat.Infrastructure`, `Aspire`, service defaults and workflows | Azure resource construction, local orchestration, telemetry, packaging and deployment | [Cloud inventory](./cloud-inventory), [operations](./operations) |
+| Cloud bot and legacy travel/payment surfaces | Retained service implementation versus active product wiring | [Cloud inventory](./cloud-inventory) |
+| Cloud server/bot/frontend test projects | Actual run totals, skipped DB checks, fixtures and legacy coverage | [Cloud inventory](./cloud-inventory), [verification](./verification) |
+| DigitalBrain Framework | Neurons, synapses, signals, bindings and execution contracts | [Runtime inventory](./runtime-inventory) |
+| DigitalBrain Client | Runtime access, transport, subscriptions and client contracts | [Runtime inventory](./runtime-inventory) |
+| DigitalBrain Platform | Identity, permission enforcement, state/journal, keys, OAuth, ledger, usage and hosting | [Runtime inventory](./runtime-inventory) |
+| DigitalBrain OS | Account workspace, module catalog, app defaults and runtime composition | [Runtime inventory](./runtime-inventory), [architecture](./architecture) |
+| DigitalBrain AI module and model catalogs | Six individual chat adapters, embeddings, images, speech, local decisions, tool use and metering | [AI providers](./providers) |
+| DigitalBrain Apps and CSharp modules | App creation/install/publish, marketplace, generated-code compilation and runtime sessions | [Runtime inventory](./runtime-inventory) |
+| DigitalBrain Flutter module/client | UI contracts, workspace shell, composer, rendering and client tests | [Runtime inventory](./runtime-inventory) |
+| DigitalBrain remaining module directories | Every active module and optional/excluded connector; external service dependencies | [Connectors and modules](./integrations) |
+| DigitalBrain `features/os` and `features/intochat` | Each default app and additional feature directory | [Application inventory](./applications) |
+| DigitalBrain hosts, Aspire, tools, test and supporting projects | Orchestration, sandbox/MCP hosting, developer tools and verification coverage | [Runtime inventory](./runtime-inventory), [operations](./operations) |
 
-Abbreviated source roots are expanded in [architecture](./architecture) and each focused assessment. Exact commands and totals are in [verification](./verification); cloud source locations and test exclusions are in [the evidence inventory](../reference/evidence). A passing suite covers its fixtures, not all acceptance criteria in this table.
+The inventory is grouped by behavior rather than counting generated files, package caches or data-transfer types as independent product features. Supporting projects are included in the coverage tables. “All project” means the inspected source areas and their product capabilities; it does not imply inspection of inaccessible deployment accounts or private implementations outside these repositories.
+
+## Four independent questions
+
+| Axis | Allowed descriptions | Example |
+|---|---|---|
+| **Implementation** | Implemented; partial with a named missing behavior; stub/schema only; not found in inspected scope | Stripe subscriptions: **implemented** |
+| **Wiring / availability** | Active registration/route; configurable; excluded from default; retained legacy/retired; host-supplied | Older user refund service: implementation retained, route retired |
+| **Verification** | Source inspected; tests present but not run; named suite passed; named check failed/skipped; live sandbox/provider exercised | Cloud suite: 120 passed, 66 skipped; no live Stripe payment run |
+| **Production** | Verified with dated deployment evidence; not verified in this audit | Stripe and AI providers: **not verified** |
+
+Do not use “partial” to mean “implemented but not production-tested.” Do not use a passing package suite to claim every adapter, route or app was individually tested. A configured factory can be implemented without credentials being present. A schema with no transport is a real implementation gap.
+
+## Concrete examples
+
+| Feature | Correct assessment | Why |
+|---|---|---|
+| Stripe subscription creation | Implemented; configuration-dependent; live payment unexecuted; production unverified | `CloudBillingProvider.CreateSubscriptionAsync` calls Stripe with catalog/mode checks and idempotency |
+| Stripe webhook receipt | Implemented; source inspected; production unverified | `CloudBillingWebhookReceiver` verifies signature/mode and inserts a deduplicated durable inbox record |
+| Account refund request | Implemented **review request**; automatic refund execution is a separate question | `AccountBillingService.RequestActionAsync` stores `refund.review` with `needs_review` |
+| OpenAI / Anthropic / Google / xAI / OpenRouter / Ollama chat | Each implemented; live provider operation unexecuted; production unverified | Each has a factory/adapter, documented separately in the provider inventory |
+| Tavily | Schema/options only for the inspected capability | Declared configuration does not establish an executable search transport |
+| Excluded payment/communications modules | Implementation assessed individually; excluded from default composition | `OsCatalog` comments out Monnet, Equifax, RiskSeal and Twilio |
+| App journey test file | Tests present; not automatically a current journey pass | `ShippedAppJourneys` assertions have different depth per application |
+
+## Verification coverage
+
+At the audited revisions, OS build passed; Platform 248 tests passed; Apps 264 passed; 11 selected Flutter tests passed; cloud .NET 120 passed / 66 skipped; cloud frontend 447 passed. OS unit test restore was blocked by `NU1902`. No live provider calls, Stripe settlement or production deployment were performed. See [exact execution evidence](./verification) before interpreting these totals.
+
+These results remain valid for the earlier recorded source snapshot; this documentation correction does not rerun or silently broaden those application checks. Source-specific limitations and test names are recorded beside the relevant features in the inventories.
+
+## Keep release risks separate
+
+An implemented mechanism may still fail a release acceptance requirement. For example, runtime usage metering exists, while universal account-wide prepaid admission is not established; a sandbox runner exists, while deployed adversarial isolation is unverified. Record both facts. Use [security](./security), [billing](./billing), [operations](./operations) and [backlog](./backlog) for acceptance conditions, without erasing implementation from the feature inventory.

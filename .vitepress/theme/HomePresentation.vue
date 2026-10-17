@@ -194,19 +194,20 @@ onUnmounted(() => observer?.disconnect());
       </div>
       <div class="readiness-grid">
         <div class="readiness-proof">
-          <span class="proof-icon" aria-hidden="true">✓</span><span class="evidence-chip">VERIFIED LOCALLY</span>
-          <h3>Core checks pass.</h3>
+          <span class="proof-icon" aria-hidden="true">✓</span
+          ><span class="evidence-chip">IMPLEMENTED · PRODUCTION UNVERIFIED</span>
+          <h3>Stripe and six AI providers.</h3>
           <p>
-            The platform unit suite and runtime OS build passed in this audit. These checks do not establish production
-            readiness.
+            Payment and model integrations are implemented. Local test evidence and production verification are recorded
+            separately for each capability.
           </p>
-          <a :href="withBase('/readiness/verification')">See exact checks →</a>
+          <a :href="withBase('/readiness/')">Explore the implementation inventory →</a>
         </div>
         <div class="readiness-notes">
           <div>
             <span class="evidence-chip">IMPLEMENTED · NOT END-TO-END VERIFIED</span>
             <h3>21 modules. 15 default apps.</h3>
-            <p>Registration is confirmed; each user journey needs its own acceptance.</p>
+            <p>Every default app, additional app bundle, connector and runtime area has its own assessment.</p>
           </div>
           <div>
             <span class="evidence-chip">PARTIAL / EXTERNAL GATES</span>

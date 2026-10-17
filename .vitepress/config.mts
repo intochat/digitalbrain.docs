@@ -27,14 +27,18 @@ const roadmap = group('Product Roadmap', 'roadmap', [
   ['Metrics & stage gates', 'metrics'],
 ]);
 const readiness = group('Implementation Readiness', 'readiness', [
-  ['Executive assessment', ''],
+  ['Implementation overview', ''],
+  ['Cloud, accounts & Stripe', 'cloud-inventory'],
+  ['AI providers', 'providers'],
+  ['Connectors & modules', 'integrations'],
+  ['Runtime & clients', 'runtime-inventory'],
+  ['Every application', 'applications'],
+  ['Coverage & status method', 'matrix'],
   ['Architecture map', 'architecture'],
-  ['Capability matrix', 'matrix'],
   ['End-to-end flows', 'flows'],
   ['Security & sandbox', 'security'],
   ['Billing & costs', 'billing'],
   ['Deployment & operations', 'operations'],
-  ['Integrations', 'integrations'],
   ['Verification log', 'verification'],
   ['Risks & backlog', 'backlog'],
 ]);
