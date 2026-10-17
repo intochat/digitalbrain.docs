@@ -183,7 +183,9 @@ public interface INeuron : IGrainWithStringKey
 
 **PR 1a** = Tasks 1.2 to 1.7 (Task 1.1 is **PR 1b**, independent). PR body lists the deleted `OnSignalAsync` contract, the `Nudge`/`Read` additions, and the test renames.
 
-### Task 1.8: Instance registration leaves the storage decorator
+### Task 1.8: Instance registration leaves the storage decorator — DEFERRED 2026-10-18
+
+> Deferred during execution: about 65 plain `Neuron` grains write `IPersistentState` directly and registration lives only in the storage decorator; `IPersistentState` has no ETag setter or state name. Doing this properly needs a framework-owned state handle across ~55 `Neuron<TState>` users plus migrating the direct writers to `Save`, which is its own proposal. The AsyncLocal attach stays and now also returns the signal sequence (Task 1.4).
 
 **Files:**
 - Modify: `src/DigitalBrain.Framework/DigitalBrain.Framework/Runtime/Kernel/InstanceRegistration.cs` (delete decorator, keep `TryDecorate`/`TryUndecorate` as no-ops for one release or remove with callers), `Runtime/Neuron.cs` (`Neuron<TState>.Save` registers on first `Exists == false` write via `IInstanceDirectory.Register`), `Runtime/Signalling/SignalJournal.cs` (delete `Attach/TakePending/Restore/Taken`), `src/DigitalBrain.Platform/DigitalBrain.Platform/Storage/BrainGrainStorage.cs:36-43`
