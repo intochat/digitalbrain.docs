@@ -2,7 +2,7 @@
 
 This repository owns the product vision, requirements, architecture assessment, implementation status and readiness plan.
 
-Start with [the four-section homepage](index.md), [Product Vision](vision/index.md), [Product Roadmap](roadmap/index.md) and [Implementation Readiness](readiness/index.md). DigitalBrain is the existing technical platform; the sibling intochat-cloud repository supplies the cloud control plane. See [repository boundaries](reference/repositories.md).
+Start with [the four-section homepage](index.md), [Product Vision](vision/index.md), [Product Roadmap](roadmap/index.md) and [Implementation Readiness](readiness/index.md). DigitalBrain is the existing technical platform (repository `intochat/os`); the sibling `intochat/platform` repository supplies the cloud control plane. See [repository boundaries](reference/repositories.md).
 
 Current statements must distinguish implemented source, dated live observations, proposed requirements and unresolved product decisions. The evidence register identifies the reviewed source revision.
 

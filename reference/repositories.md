@@ -6,9 +6,11 @@ IntoChat has two complementary implementation surfaces: the cloud control plane 
 
 | Repository | Inspected revision | Responsibility |
 | --- | --- | --- |
-| `intochat-cloud` | `codex/cloud-migration`, `d9dc9798ca5bfc2b93e2b2b12cd3f3033047d2c6` plus existing local changes | React account portal, authentication, cloud billing, runtime provisioning, workspace access proxy, infrastructure and usage accounting |
-| `digitalbrain` | `master`, `faddacfc3b5e7cf3a74adfd0efcf8a17e277540b`, clean checkout | .NET/Orleans platform, modules, application runtime and Flutter workspace |
+| [`intochat/platform`](https://github.com/intochat/platform) | `codex/cloud-migration`, `d9dc9798ca5bfc2b93e2b2b12cd3f3033047d2c6` plus existing local changes | React account portal, authentication, cloud billing, runtime provisioning, workspace access proxy, infrastructure and usage accounting |
+| [`intochat/os`](https://github.com/intochat/os) | `master`, `faddacfc3b5e7cf3a74adfd0efcf8a17e277540b`, clean checkout | .NET/Orleans platform, modules, application runtime and Flutter workspace |
 | `digitalbrain.docs` | `main`, baseline `8182b1adf680fd54d1b5a067a9ab37e17bd0f590` plus existing documentation changes | This handbook, plans and historical audit records |
+
+GitHub redirects the old names intochat/digitalbrain and intochat/cloud; the split plan is `plans/repository-split-2026-10-17.md`.
 
 These are working-tree observations, not claims that every finding is present in the named commit. Cloud already had modifications in `src/Aspire/AppHost.cs`, `src/IntoChat.WebUI/src/features/auth/lib/oauth.test.ts` and `src/IntoChat.WebUI/src/shared/config/env.ts`. They were preserved. Use [the evidence inventory](./evidence) when interpreting verification results.
 
