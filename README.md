@@ -1,65 +1,32 @@
-# digitalbrain.docs
+# IntoChat product handbook
 
-The VitePress handbook published at [intochat.github.io/digitalbrain.docs](https://intochat.github.io/digitalbrain.docs/). Product source
-lives in [intochat/digitalbrain](https://github.com/intochat/digitalbrain); this repository owns the
-public explanation, navigation, and GitHub Pages build only.
+This repository owns the product vision, requirements, architecture assessment, implementation status and readiness plan.
 
-## Work on the site
+Start with [the four-section homepage](index.md), [Product Vision](vision/index.md), [Product Roadmap](roadmap/index.md) and [Implementation Readiness](readiness/index.md). DigitalBrain is the existing technical platform; the sibling intochat-cloud repository supplies the cloud control plane. See [repository boundaries](reference/repositories.md).
 
-```bash
-npm ci --no-audit --no-fund
-npm run dev
-npm run build
+Current statements must distinguish implemented source, dated live observations, proposed requirements and unresolved product decisions. The evidence register identifies the reviewed source revision.
+
+Previous documentation and pre-existing working edits are preserved under archive/2026-10-15-readiness and excluded from the active VitePress site. See documentation-migration.md.
+
+The October 15 assessment did not run a site build or publish. The October 17 update explicitly authorized safe local builds, tests and browser checks; [site verification](reference/site-verification.md) and [application verification](readiness/verification.md) record their scope and limitations. Historical requirements and assessments remain addressable with a preserved-record notice.
+
+## Local development
+
+```sh
+npm ci
+npm run dev -- --port 4173
 ```
 
-`npm run build` creates `.vitepress/dist`, checks internal links, renders every page, and generates
-the sitemap. There is no documentation test command in the current no-test phase, and no new npm
-package should be added without an explicit product-owner grant.
+Open `http://127.0.0.1:4173/digitalbrain.docs/`. Development and preview bind to loopback. To verify the static artifact:
 
-## Source authority
+```sh
+npm run typecheck
+npm test
+npm run lint
+npm run build
+npm run check:links
+npm audit
+npm run preview -- --port 4173
+```
 
-When sources disagree, use this order:
-
-1. committed production source on the current `intochat/digitalbrain` `master` branch;
-2. that product repository's `plans/RATIFIED-PRODUCT-DEFINITION.md` for intent, clearly labelled
-   when it is future;
-3. its `plans/stage1/reports/Stage1-exit-audit.md` for live-smoke evidence and verified limitations;
-4. this site, which explains but never overrides the three sources above.
-
-Do not publish an uncommitted product experiment as shipped architecture. Preserve unrelated dirty
-work in either repository and stop if it overlaps the page being changed.
-
-Every status-bearing page uses three explicit labels:
-
-- **Implemented now** for behavior present in production source;
-- **Known limitation** for an incomplete or unsafe current seam;
-- **Ratified next** for approved direction that is not shipped.
-
-## Page ownership
-
-| Page | Owns |
-| --- | --- |
-| `index.md` | Product entry and current-state warning |
-| `getting-started.md` | Real Aspire startup, bootstrap, local auth, persistence, and shutdown |
-| `concepts.md` | Current ubiquitous language |
-| `architecture.md` | System map and responsibility boundaries |
-| `architecture/kernel-runtime.md` | Neuron, journal, outbox, capability, and graph mechanics |
-| `architecture/module-system.md` | Contract/runtime/hosting composition |
-| `architecture/scripting.md` | Out-of-process cluster clients and generated file-based C# apps |
-| `architecture/chat-execution.md` | Authenticated chat through durable Execution |
-| `architecture/hosting-security.md` | Aspire graph, identity, OAuth, and host boundaries |
-| `modules.md` | Source-linked module inventory |
-| `reference/http-surface.md` | Route-map-derived HTTP/MCP surface |
-| `reference/wire-contracts.md` | Permanent aliases and identity compatibility |
-| `status.md` | Implemented, limited, and ratified-next inventories |
-| `contributing.md` | Current change and verification discipline |
-
-Design and implementation records for this refit live under `docs/superpowers/`; they are project
-history, not alternate product architecture.
-
-## Publishing
-
-`.github/workflows/pages.yml` installs with Node.js 24, runs the VitePress production build on pull
-requests and pushes to `main`, and deploys non-pull-request builds to GitHub Pages at
-`https://intochat.github.io/digitalbrain.docs/`. VitePress `base` is `/digitalbrain.docs/` so asset
-and page URLs resolve on the default project-pages host. The logo remains in `public/logo.svg`.
+The lint command checks formatting; Vue type checking and built-link validation are separate. The lockfile pins the reviewed dependency graph. VitePress stays on its existing stable architecture with a patched Vite 6 override; TypeScript 5.9 is required by the current Vue checker. See [maintenance](reference/maintenance.md) before updating evidence or dependency versions. No external publication or push is part of this update.

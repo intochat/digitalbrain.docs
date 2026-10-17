@@ -1,97 +1,52 @@
-# Current status
+# Product readiness
 
-This page separates production source, local smoke evidence, and ratified future architecture. It
-was reconciled against the product repository on 2026-08-11. No automated-test result is used as
-current evidence.
+**Assessment: substantial prototype and local product slices; readiness for the full three-pillar release is not established.** The biggest gaps are reliable generated-app behavior, a coherent authoring and presentation contract, complete social lifecycle rules, and real external social connectors.
 
-## Implemented now
+Assessed on 15 October 2026 against commit `667a0327a8b90cedf95b9a5b73494202b73b424e`. “Implemented” below means identifiable source paths exist. Historical live observations are dated separately and do not certify the current checkout.
 
-### Runtime and durability
+## Feature status
 
-- Owner-bound neurons use Orleans journaled grains with incoming/outgoing feeds, journal-is-outbox
-  delivery, at-least-once dispatch, receiver deduplication, and bounded in-memory journal views.
-- The connection graph stores durable source/alias/target routes and supports typed relay
-  transforms.
-- Execution owns durable work through Goals, Attempts, Operations, Blockers, bounded receipts and
-  operation rows, allow-listed workers, worker leases, cancellation, and explicit
-  `OutcomeUncertain` resolution.
-- The core Neuron, Execution, and Introspection adapters delegate to focused collaborators. There
-  are no handwritten partial classes; generated partial wire interfaces remain.
-
-### Product edge and identity
-
-- Kernel HTTP uses cookie identity, an authenticated fallback policy, Development-only loopback
-  impersonation, and an HTTPS requirement beyond loopback.
-- The first anonymous bootstrap creates the Owner. An Owner or Admin can create Owner, Admin,
-  Builder, and Viewer accounts.
-- Chat and surface names are scoped with the authenticated `PrincipalId`. Authorization events are
-  filtered to the actor who owns the OAuth state.
-- Chat work is Execution-backed. Aborting an HTTP/SSE observer detaches the observer without
-  cancelling the durable turn. Chat, surface, authorization, and graph streams resume from
-  `afterSequence`.
-- Google and Salesforce use one generic MCP catalog/OAuth rail. OAuth state is actor-bound, uses
-  PKCE S256, expires, is capped, and is consumed once. Protected token state has no cross-user
-  fallback.
-
-### Checked-in local composition
-
-- The AppHost runs Azurite with a data volume and persistent container lifetime, Qdrant, persistent
-  Ollama/Open WebUI, Gemma4, Kernel, Flutter, a separate northbound MCP app, and a separate Scripting
-  client. Llama32 remains in source but is not selected by the current AppHost.
-- Scripting generates one temporary file-based C# app, runs it through the .NET SDK/Roslyn path,
-  connects it to the Orleans cluster with `DigitalBrainClient.ConnectAsync`, fires a typed
-  `ChartPoint`, attempts to clean up the artifact, and exits. It is not part of Kernel or a module.
-- The local Flutter shell renders chat, surfaces, brain topology, graph events, and authorization
-  events. Behavior Studio is visibly a preview/demo, not a working behavior runtime.
-- Salesforce Contracts remains a permanent module interface alongside the other contract
-  assemblies. Existing wire aliases remain permanent.
-
-### Smoke observed on 2026-08-11
-
-This smoke predates restoration of the Scripting AppHost resource and used the earlier graph that
-also selected Llama32. Scripting statements and the current Gemma4-only selection above are
-source-characterized implementation claims, not revisions to the smoke evidence below.
-
-- AppHost resources reached healthy, including Kernel, MCP, Flutter, Azurite, Qdrant, Ollama,
-  `llama3.2`, and `gemma4:12b`.
-- Bootstrap, Owner-created Viewer, Viewer login, and two distinct cookie principals succeeded.
-- Two principals using local chat name `main` received private transcripts with no marker leakage.
-- A slow AI turn renewed its worker lease and reached `Responded` plus `Completed` after 28.8
-  seconds.
-- Google produced an actor-bound stateful PKCE URL and reached the provider login page.
-- Authorization SSE filtering prevented a Viewer from receiving the Owner's sign-in event.
-- The post-refit topology observation reported 8 modules, 14 active neurons, and 0 live graph
-  connections. Those counts describe that smoke moment, not a fixed product limit.
-
-## Known limitations
-
-| Area | Current limitation | Consequence |
+| Capability | Current state | What remains before a product promise |
 | --- | --- | --- |
-| Northbound MCP | The separate `DigitalBrain.Mcp` app maps `/mcp` without authentication. Chat tools accept a bare chat name and stamp a fixed operator actor. | The endpoint is a security/scoping blocker and must not be exposed as a trusted multi-user boundary. |
-| Salesforce OAuth | The provider's External Client App registration did not match `http://localhost:5080/oauth/callback` during smoke. | State and PKCE were generated, but provider consent/token exchange could not complete. |
-| First run | Development loopback auth can impersonate only an already stored bootstrap Owner. | A fresh volume requires one manual `POST /auth/bootstrap`; Flutter streams started earlier can need a restart. |
-| Scripting | The restored project generates only a fixed ChartPoint proof and runs with ordinary local process, filesystem, and environment access. | It demonstrates generation and cluster connection, but is not an approved, versioned, sandboxed Behavior host. |
-| Behavior Studio | Flutter carries preview fixtures and a demo client, but no Behavior host, approval/install rail, or execution path exists. | The preview must not be read as a shipped self-programming feature. |
-| Module catalogs | AppHost resource selection and Kernel `ComposedModules` are two explicit catalogs. | Adding/removing a module can drift unless both composition sites are reviewed. |
-| Streams/PubSub | Azure Queue Streams and PubSub storage are provisioned, but production source has no Streams consumer. | They are retained only until Stage 2 proves removal is safe. Synapse outbox delivery does not use them. |
-| AI safe point | Direct agent session state persists at tool-result safe points and stream completion. | A crash between an external effect and its following result safe point remains explicit debt. |
-| Verification | The former central test suite was intentionally deleted; existing source is current authority. | Final hardening must design tests owned by each module rather than recreate one central test project. |
+| Natural-language specification | Implemented Author flow with bounded retries | Complete visual, failure, permission, and acceptance requirements |
+| App code generation | Implemented Builder, contract discovery, compile feedback, attempt tracking | Reliable behavior across a declared app set; understandable repair |
+| Parser and compiler | Implemented Roslyn syntax parsing, AST inspection, emit, and synapse shape checks | Semantic acceptance, not a new lexer |
+| App appearance | Typed UI vocabulary and revision-bound presentations exist | Align generation prompts with current presentation model; define app UX contract |
+| Publish verification | Compile checks exist but can return early without verification | Fail closed or explicitly prevent an unverified release from being presented as verified |
+| App release and installation | Versioned releases, digests, provenance, separate recipient configuration | Current end-to-end acceptance and understandable update/fork/recovery choices |
+| Circles | Creation, invitation acceptance, membership, chat, app and connection sharing | Complete ordinary-user flows and lifecycle policy |
+| Friends and posts | Current shared-circle membership derives friends; guarded post references | Audience controls, retention, deletion, moderation and discovery scope |
+| Maker profiles and app feed | Shipped Circle app and marketplace paths exist | Clearly distinguish app releases from personal posts and group chat |
+| External social networks | No production social provider registered in inspected OS catalog; Twitter is a fixture | Chosen providers and real authenticated actions/event ingestion |
+| Runtime | One local authoritative runtime, persistent app state, sandbox execution machinery | Production acceptance, capacity, recovery and isolation evidence |
+| Deployment | Local and cloud model profiles exist | A cloud model profile is not a verified multi-user cloud product deployment |
 
-## Ratified next
+Sources: [Evidence register](assessment/evidence.md), [Creator assessment](assessment/app-generation.md), [Social assessment](assessment/social-networks.md).
 
-- Extract **Conversation** into its own domain module between UI and AI. Conversation messages
-  become canonical history, each conversation has FIFO durable turns, and exactly one responder
-  connection is selected.
-- Build **Behavior** on the restored Scripting capability as an approved, immutable, versioned
-  single-file C# capability. Generated code runs out of process with no ambient network,
-  filesystem, process, or environment authority; all effects cross durable Execution.
-- Remove unused Streams/PubSub only after a source proof confirms no consumer, and remove the
-  duplicated module catalogs by giving composition one authoritative seam.
-- Complete the northbound MCP identity boundary and Salesforce callback registration before the
-  Stage-1 exit is declared.
-- Design a proper module-owned testing framework during final hardening. Tests belong beside their
-  owning module, not in one central project.
+## Release blockers
 
-Ratified product intent is not an implementation claim. For current operation, use
-[Run DigitalBrain locally](/getting-started); for the current system shape, use
-[Architecture](/architecture).
+| Priority | Blocker | User consequence | Exit condition |
+| --- | --- | --- | --- |
+| P0 | Generator guidance still asks for an entry while current apps publish presentations | Generated logic may exist without a discoverable usable screen | Fresh generated apps publish valid current presentations and expose every promised interaction |
+| P0 | Compilation does not prove behavior; historical generation produced loops and missing reactions | “Live” can mislead the creator | Acceptance evidence for each supported app category, including restart and repair |
+| P0 | Publish/export compile gate permits compiler absence or an InvalidOperationException | Verification promise is conditional | Unverified bundles cannot cross the chosen release gate silently |
+| P0 for external automation | No real external social connector in current composition | Advertised social automations cannot execute | A named provider's complete authenticated journey works with real data |
+| P0 for public launch | Social safety and audience lifecycle are not fully specified | Users cannot predict visibility, removal, or abuse handling | Agreed policy and demonstrated enforcement through UI and backend |
+| P0 for deployment | Secured-origin, recovery and browser/device execution acceptance is incomplete | A local demonstration may fail for an external recipient | Deployment-specific release checklist completed |
+| P1 | Builder work is process-local while status is durable | Interruption can leave a build requiring retrigger | Obvious interrupted state, safe retry and defined recovery behavior |
+| P1 | Social post discovery uses a bounded chat history, while publication receipts grow | Old posts can become undiscoverable and retained state can grow | Explicit retention/indexing policy and behavior |
+| P1 | Documentation and prompts describe different generations of the product | Development and generation follow contradictory contracts | One current handbook and contract-aligned generation guidance |
+
+P0 means a blocker for the associated promise, not a claim that the entire runtime is unusable.
+
+## Evidence and limits
+
+Historical live checks on 12 October showed a successful uppercase app, a two-note app requiring repair, and a selection app failing through a loop; a corrective selection generation then missed the required reaction. Those findings establish failure modes, not the current generation success rate.
+
+Historical 14 October records describe recipient installation of an exact Customer Researcher release, account isolation, a real local research run, and restart persistence. They establish a meaningful local sharing slice, not a public social-network launch.
+
+Two automated suites completed before the product owner instructed this assessment to stop tests: Apps 264 passed and Circles 33 passed. They are supporting engineering evidence only. The subsequent CSharp run was stopped and is not counted as a verified result. No further tests, builds, or live acceptance were run as part of this assessment.
+
+## Readiness recommendation
+
+Keep all three pillars in the vision. Release claims should be earned by the [requirements](product/requirements.md) and [delivery gates](plans/readiness.md), with a visible status for each. Do not publish a percentage of readiness from file counts, module counts, or passing tests.

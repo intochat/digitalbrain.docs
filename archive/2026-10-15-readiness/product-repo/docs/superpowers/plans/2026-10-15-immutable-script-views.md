@@ -1,0 +1,20 @@
+# Immutable Script Views Implementation Plan
+
+**Goal:** Migrate Calculator, BrainView, and Assistant to script-generated immutable view trees, preserve all behavior and coverage, remove superseded widget coordination, and measure a green root suite under eight minutes on one runner.
+
+**Authorization:** The user explicitly approved this design and implementation. Execute in the existing dirty workspace without commits or changes to the live Debug host. Release builds only; coordinate shared build output and freeze all source during Aspire E2E runs.
+
+**Architecture:** One typed, versioned `IView` publishes a bounded tree per app view. Text, buttons, rows, columns, and cards are inline immutable values. Explicit references embed independently stateful components such as the assistant composer and transcript, preserving drafts, read receipts, and command contracts. The latest tree is a recoverable cache; application state remains separate. One renderer reads/watches the tree, and stable local keys preserve component identity. Actions validate generation and canonical action identity at the server; no arbitrary client command payload is accepted.
+
+**Contract:** `DigitalBrain.Flutter.Views.IView` has `Publish(UiView)`, `Read(): Task<UiView?>`, and `Activate(long generation, string key, string expectedAction, Guid requestId)`. `UiView(long Generation, long Version, UiNode Root)`. `UiNodeKind` numeric values Text=0, Button=1, Column=2, Row=3, Card=4, Reference=5. `UiNode(Kind, Key)` properties Text, Detail, Action, Enabled, Children, Extents, Reference (UiChildRef), Gap, FollowEnd. Factories `Ui.Text`, `Button`, `Column`, `Row`, `Card`, `Reference`. Signals `ViewChanged(Name, Generation, Version)` and `ViewAction(Name, Key, Action, RequestId, Generation)`. UI kind `view`.
+
+## Work and verification
+- [ ] Implement contracts and server view neuron, endpoint integration, validation and canonical action dispatch. Prove ordering, reactivation, mutation isolation, malformed/oversize trees, same-brain reference scope, stale/disabled action rejection, and idempotent publication with focused tests.
+- [ ] Implement Flutter immutable tree renderer with stable keys, inline primitives (no per-node load/watch), explicit stateful references, and view action routing. Prove one root load/watch, inline updates, button payload, and keyed reference state preservation. Run Dart formatting/analyze/tests and request hot reload through the available Dart tools without touching the user's live Debug host.
+- [ ] Calculator: pure tree composition, one view publisher observing durable keypad state; canonical ViewAction subscriber replaces 16 button subscriptions. Retain expression/idempotency and command behavior. Remove per-widget layout/button writes.
+- [ ] BrainView: render runtime/legacy merged history directly into the tree, remove card/text/layout storage projection writes and preserve lower-level history compatibility.
+- [ ] Assistant: replace static per-widget composition with an immutable view; consolidate derived presentation publishers where safe. Keep composer, chat read receipts, transcript/tool/action semantics and semantic external endpoints. Remove superseded layouts/buttons and redundant observers only with matching coverage.
+- [ ] Review migration for security, stale generations, restart, external consumers, and coverage loss. Run focused checks, then freeze source and run `dotnet test -c Release -p:CodeGraphRefresh=false --max-parallel-test-modules 4 --timeout 15m` from root with an external stopwatch. Investigate remaining failures without raising budgets or exclusions.
+
+## Decisions
+Start with complete bounded trees; no generic patch engine. Preserve existing durable chat/composer contracts through explicit references instead of rewriting their business semantics into presentation. Old UI contracts remain for unmigrated apps; remove obsolete paths only in migrated apps. Protocol version/generation rejection must not drop ordinary durable events. Private data must remain behind existing brain/caller authorization.

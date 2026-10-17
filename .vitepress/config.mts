@@ -1,83 +1,104 @@
-import { defineConfig } from 'vitepress'
+import { defineConfig } from 'vitepress';
+import { guardDetachedOutline } from './outline-guard.mjs';
 
-const siteBase = '/digitalbrain.docs/'
-
-export default defineConfig({
-  title: 'DigitalBrain',
-  description: 'Current handbook for the durable DigitalBrain workspace on Orleans and Aspire',
-  base: siteBase,
-  cleanUrls: true,
-  srcExclude: ['README.md', 'docs/**'],
-  sitemap: {
-    hostname: 'https://intochat.github.io/digitalbrain.docs/'
-  },
-  head: [
-    ['link', { rel: 'icon', type: 'image/svg+xml', href: `${siteBase}logo.svg` }],
-    ['meta', { name: 'theme-color', content: '#080a12' }]
+const group = (text: string, prefix: string, pages: [string, string][]) => ({
+  text,
+  items: pages.map(([title, path]) => ({ text: title, link: `/${prefix}/${path}` })),
+});
+const vision = group('Product Vision', 'vision', [
+  ['Overview', ''],
+  ['Users & jobs', 'users'],
+  ['Market landscape', 'market'],
+  ['First applications', 'experience'],
+  ['Ecosystem & architecture', 'ecosystem'],
+  ['Catalog & marketplace', 'marketplace'],
+  ['Open source & business', 'commercial'],
+  ['Pricing & unit economics', 'pricing'],
+  ['Hypotheses', 'hypotheses'],
+]);
+const roadmap = group('Product Roadmap', 'roadmap', [
+  ['Overview', ''],
+  ['Deployment first', 'deployment'],
+  ['Workspace & applications', 'core'],
+  ['Pilot & validation', 'pilot'],
+  ['SDK & developers', 'developers'],
+  ['Marketplace launch', 'marketplace'],
+  ['Epics & dependencies', 'epics'],
+  ['Metrics & stage gates', 'metrics'],
+]);
+const readiness = group('Implementation Readiness', 'readiness', [
+  ['Executive assessment', ''],
+  ['Architecture map', 'architecture'],
+  ['Capability matrix', 'matrix'],
+  ['End-to-end flows', 'flows'],
+  ['Security & sandbox', 'security'],
+  ['Billing & costs', 'billing'],
+  ['Deployment & operations', 'operations'],
+  ['Integrations', 'integrations'],
+  ['Verification log', 'verification'],
+  ['Risks & backlog', 'backlog'],
+]);
+const reference = group('Reference', 'reference', [
+  ['Evidence & sources', 'evidence'],
+  ['Repository relationship', 'repositories'],
+  ['Glossary', 'glossary'],
+  ['Founder decisions', 'decisions'],
+  ['Maintenance', 'maintenance'],
+  ['Site verification', 'site-verification'],
+]);
+const history = {
+  text: 'Preserved records',
+  collapsed: true,
+  items: [
+    { text: 'Earlier handbook overview', link: '/product/previous-overview' },
+    { text: 'Earlier product vision', link: '/product/vision' },
+    { text: 'Requirements', link: '/product/requirements' },
+    { text: 'Readiness assessment', link: '/status' },
+    { text: 'Cloud migration status', link: '/plans/intochat-cloud-migration-status' },
+    { text: 'Cloud migration plan', link: '/plans/intochat-cloud-migration' },
+    { text: 'App journey check', link: '/assessment/app-journey-verification-2026-10-16' },
+    { text: 'Architecture', link: '/architecture' },
+    { text: 'Capabilities', link: '/modules' },
+    { text: 'Operations', link: '/getting-started' },
+    { text: 'Documentation migration', link: '/documentation-migration' },
   ],
+};
+export default defineConfig({
+  title: 'IntoChat',
+  description: 'Universal AI workspace · Product vision, roadmap and evidence-backed implementation readiness',
+  base: '/digitalbrain.docs/',
+  cleanUrls: true,
+  appearance: false,
+  vite: {
+    plugins: [{ name: 'guard-detached-vitepress-outline', enforce: 'pre', transform: guardDetachedOutline }],
+  },
+  srcExclude: ['README.md', 'archive/**', 'docs/**'],
+  markdown: {
+    config(md) {
+      const fence = md.renderer.rules.fence!;
+      md.renderer.rules.fence = (tokens, index, options, env, self) => {
+        if (tokens[index].info.trim() === 'mermaid') {
+          const source = md.utils.escapeHtml(JSON.stringify(tokens[index].content));
+          return `<MermaidDiagram :source="${source}" />`;
+        }
+        return fence(tokens, index, options, env, self);
+      };
+    },
+  },
   themeConfig: {
-    logo: '/logo.svg',
+    logo: '/intochat-mark.svg',
     nav: [
-      { text: 'Start', link: '/getting-started' },
-      { text: 'Architecture', link: '/architecture' },
-      { text: 'Modules', link: '/modules' },
-      { text: 'Status', link: '/status' },
-      { text: 'GitHub', link: 'https://github.com/intochat/digitalbrain' }
+      { text: 'Product Vision', link: '/vision/' },
+      { text: 'Product Roadmap', link: '/roadmap/' },
+      { text: 'Implementation Readiness', link: '/readiness/' },
     ],
-    sidebar: [
-      {
-        text: 'Start',
-        items: [
-          { text: 'Overview', link: '/' },
-          { text: 'Run locally', link: '/getting-started' },
-          { text: 'Concepts', link: '/concepts' }
-        ]
-      },
-      {
-        text: 'Architecture',
-        items: [
-          { text: 'System map', link: '/architecture' },
-          { text: 'Kernel runtime', link: '/architecture/kernel-runtime' },
-          { text: 'Module system', link: '/architecture/module-system' },
-          { text: 'Scripting', link: '/architecture/scripting' },
-          { text: 'Chat and execution', link: '/architecture/chat-execution' },
-          { text: 'Hosting and security', link: '/architecture/hosting-security' }
-        ]
-      },
-      {
-        text: 'Product',
-        items: [
-          { text: 'Modules', link: '/modules' },
-          { text: 'Current status', link: '/status' }
-        ]
-      },
-      {
-        text: 'Reference',
-        items: [
-          { text: 'HTTP surface', link: '/reference/http-surface' },
-          { text: 'Wire contracts', link: '/reference/wire-contracts' }
-        ]
-      },
-      {
-        text: 'Project',
-        items: [
-          { text: 'Contributing', link: '/contributing' }
-        ]
-      }
-    ],
-    socialLinks: [
-      { icon: 'github', link: 'https://github.com/intochat/digitalbrain' }
-    ],
-    search: {
-      provider: 'local'
-    },
+    sidebar: [vision, roadmap, readiness, reference, history],
+    search: { provider: 'local' },
+    outline: { level: [2, 3] },
+    docFooter: { prev: 'Previous document', next: 'Continue reading' },
     footer: {
-      message: 'Current-source handbook for the private, durable DigitalBrain workspace.',
-      copyright: 'DigitalBrain contributors'
+      message: 'Code is evidence of implementation. Executed checks are evidence of tested behavior.',
+      copyright: 'IntoChat product handbook · Evidence reviewed 17 October 2026',
     },
-    outline: {
-      level: [2, 3],
-      label: 'On this page'
-    }
-  }
-})
+  },
+});

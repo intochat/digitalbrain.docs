@@ -1,0 +1,57 @@
+diff --git a/.vitepress/config.mts b/.vitepress/config.mts
+index 8dfaed78..8d8f8453 100644
+--- a/.vitepress/config.mts
++++ b/.vitepress/config.mts
+@@ -20,6 +20,7 @@ export default defineConfig({
+     nav: [
+       { text: 'Start', link: '/getting-started' },
+       { text: 'Architecture', link: '/architecture' },
++      { text: 'CoreV2', link: '/architecture/corev2' },
+       { text: 'Modules', link: '/modules' },
+       { text: 'Status', link: '/status' },
+       { text: 'GitHub', link: 'https://github.com/intochat/digitalbrain' }
+@@ -37,6 +38,7 @@ export default defineConfig({
+         text: 'Architecture',
+         items: [
+           { text: 'System map', link: '/architecture' },
++          { text: 'CoreV2 framework', link: '/architecture/corev2' },
+           { text: 'Kernel runtime', link: '/architecture/kernel-runtime' },
+           { text: 'Module system', link: '/architecture/module-system' },
+           { text: 'Scripting', link: '/architecture/scripting' },
+diff --git a/architecture.md b/architecture.md
+index bac2c1e5..3928f869 100644
+--- a/architecture.md
++++ b/architecture.md
+@@ -5,6 +5,10 @@ modules, an authenticated HTTP edge, a Flutter shell, and separate cluster-clien
+ Production source defines the current shape; this page explains how those pieces depend on each
+ other.
+ 
++> CoreV2 is a separate implemented framework branch, not a replacement for this V1 production
++> map yet. See [CoreV2 framework](/architecture/corev2) for its typed operation/activity/module/
++> graph model and proof status.
++
+ ## System map
+ 
+ ```text
+diff --git a/status.md b/status.md
+index dc6ab4a4..a116a1cb 100644
+--- a/status.md
++++ b/status.md
+@@ -79,6 +79,17 @@ source-characterized implementation claims, not revisions to the smoke evidence
+ 
+ ## Ratified next
+ 
++### CoreV2 framework branch
++
++**Implemented on `codex/corev2-framework`.** CoreV2 now has an isolated typed framework,
++deterministic Orleans TestCluster proof module, and acceptance coverage for its activity,
++capability, graph, delivery, wiring, privacy, retry, and policy invariants. It intentionally keeps
++provider schemas, raw graph controls, and adapter-specific JSON out of the framework.
++
++**Known limitation.** The final CI/documentation hardening task remains pending, and CoreV2 has not
++yet replaced V1 product hosting, Flutter, MCP transport, provider integration, or billing.
++See [CoreV2 framework](/architecture/corev2).
++
+ - Extract **Conversation** into its own domain module between UI and AI. Conversation messages
+   become canonical history, each conversation has FIFO durable turns, and exactly one responder
+   connection is selected.

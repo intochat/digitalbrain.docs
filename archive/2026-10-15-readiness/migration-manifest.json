@@ -1,0 +1,1132 @@
+[
+  {
+    "Path": ".superpowers/sdd/2026-10-11-forking-loop-mvp/reports/task-I-report.md",
+    "SHA256": "E44C35CD07EEE8F93DA873DC8C4414F56459FBEC11DD26787DE9290AAC6A08E9",
+    "Action": "removed"
+  },
+  {
+    "Path": ".superpowers/sdd/mvp/task-G5-report.md",
+    "SHA256": "ED93B3FFE7D7365C0C55C990F7B3B220674FE8B2EF801210ACEE645709F2BE94",
+    "Action": "removed"
+  },
+  {
+    "Path": "CLAUDE.md",
+    "SHA256": "F34087513ADEBE4DE1CDA8194C51DC4F27032FDF443AECCEE298366469BECB10",
+    "Action": "retain-agent-instructions"
+  },
+  {
+    "Path": "docs/superpowers/contracts/flame-schema.json",
+    "SHA256": "A2CC96273FF9BB041CCC0F9C39A1CE0C3BAFD467BB6F14D27390A3F623D6E5BD",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/ledgers/2026-10-10-brain-as-data-repo-rules.md",
+    "SHA256": "7421B0F687C4BCCAE0BA87C26F95746BE31034506991E9FB1FCAAEF7B60857F6",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/ledgers/2026-10-10-brain-as-data.md",
+    "SHA256": "BC3CA0B3C38261D53314C4AFBA22D8E236DA099EF55D415BA945E1EDC999B9ED",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/ledgers/2026-10-11-flame-stage.md",
+    "SHA256": "7AF3E06EAEB95A51A3911E1EB51EB920C6FE47BFC47DC93C1495EBF4830CB9D4",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/__pycache__/mcp.cpython-39.pyc",
+    "SHA256": "1D79CA5A1D2608EF5787288DDA20CE459A510D6CB390CF1A411AFF827D39B062",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/assistant-benchmark.py",
+    "SHA256": "6D37EFD2AB1B1D4859E27ABF065CEF06E6FF68DE70CA03248AC03A1C56A423A6",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/driving.md",
+    "SHA256": "35FF8DFDBF2ACE8263C61957C43DFB704BFD34AA1BC3014D80E72918ADDC0CDA",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/fastpath_bench.py",
+    "SHA256": "2523ED359690D6CAB0EBBC96C00B5BA53D53AFD136D48461CF501FEF3BD7F54A",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/ledger.md",
+    "SHA256": "E3C7EBEE03DB2912B7F972EA449A63615F6C23D1AC63AD83CF39BAB1A8AE366E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/mcp.py",
+    "SHA256": "7DB14E2706E296E2AF7C809BE5679B4BA0910B1674212E6B6F3A8816246A8870",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/1-notes-writer.md",
+    "SHA256": "663224ADC032F4B29BBDF0ADD523BA5E37A5EB669FAA347C697416CF999A51DA",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/2-trader.md",
+    "SHA256": "DACF94AFA3E36C37ECC2918D759CA115F77D0D28F795D9D862B6C3B19A2387F0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/3-student.md",
+    "SHA256": "7384347E4709CEA126675A0723B00B306FDE0EC539B53AF6C1F9B315FE7BC5E7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/4-circle-admin.md",
+    "SHA256": "6D251123FC0B4B21B26BEE40D408B4D1EB4D389731B2CA0F4C1B5D5620F33165",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/5-forker.md",
+    "SHA256": "67D6B67492C152F8775BE676614FDF0913BD499C6F8F998FDFFB9D684F8E4C33",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/6-calculator-power-user.md",
+    "SHA256": "178D58EFD2C5CF26823D8D7A120B0F9A95EDAAD9BFFE66C42BD99CD47822D809",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/personas/7-word-nerd.md",
+    "SHA256": "AB77F58F17D9357D0BB8C8BE44AAA3536A1EC165073511C1ECEA97962B361D25",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/loop/resources.py",
+    "SHA256": "BF885CD5458255494480A897EDF63413DC2D83E458611E7A1D23A4BB52866CA4",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/runtime.py",
+    "SHA256": "33AE505E27E261F50DC676813C64107032C0D461FAFE3CD595398FCF0B2C9AB2",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/loop/scenarios.md",
+    "SHA256": "ED7BE313B3C5C69761A3B6D7094E6708FFE1A2E26F568FC485043CD93C1150D5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-04-module-self-description.md",
+    "SHA256": "6EB03038A8394E492385892AC55E5C13632F3817D0416031C4E3DAD603ADEE0A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-apps-ownership-marketplace.md",
+    "SHA256": "976E4E309D0BE48A97117495FF1E8F3A1189A49757808642C80ED76A817EB19F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-apps-simplification.md",
+    "SHA256": "4E5AA0C129A4C4E6251818FE524D273226719E2960C03445FDEC15B2114FE113",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-compute-ledger-collapse.md",
+    "SHA256": "A0A13045F0AF619214F86C52A972DD1E9B59976A62CC4A26A9B1D89F43AD7ABA",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-connector-identity-migration.md",
+    "SHA256": "5F19EB941ECA6CB0248AC7EE8A5239DA0A92F53B568140FDD4B58F8218B9740D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-connector-migration.md",
+    "SHA256": "65C12731FC11F688B24C90EFF754F47141BEEBC28D74023C1F28B8A5AB158E48",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-connector-review-remainders.md",
+    "SHA256": "52251DF2388EFDCA72E8433B1DB74E8F07B8AD431FC8093B49EF6FEDCE9EDE0F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-connector-verification.md",
+    "SHA256": "C49342FAEC0568E3A89437AEB62078297DA5D452F4FA4F28BFD49022AE8C79D5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-e2e-harness-redesign.md",
+    "SHA256": "791BE4859F4BCE974AD3BB040AF51EDAF8CC10C13BD7D1443018A04CB35BB0D1",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-framework-restructuring.md",
+    "SHA256": "DB54C2E9814BC59C1A81BFCD82304DBA7C32BE24AC635BF7F35D780F985D87F8",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-module-identity-unification.md",
+    "SHA256": "F4BF3F03B28AACA2C7A5E588CE6CDB2063EDE1317B5F788CB5298B2D491B30C5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-05-registry-chain.md",
+    "SHA256": "EC9ACE0D27ED063D3F0A7DE9A2C6BF9779CF6525181689261223B3F82018E12E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-datavisualizer.md",
+    "SHA256": "64539E662F810D4E5CB86043EC9B7D29D90E72B3732DCD85730E4F571D7A3160",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-postgres-module-structure.md",
+    "SHA256": "A1AC2681A8AA631E496482DBF52445718436E42F5D6397418EA61F1E1DF87BA9",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-registry-inventory-gate.md",
+    "SHA256": "F2839174DBFA2ACEBD0FCC22EDAC9DA28160E1F313F54C8CAEBAAF6DEA354D7D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-registry-inventory-plan.md",
+    "SHA256": "7465DC8EC0486D804B7D5B0A3EF0626EE484A0AFE5C03E5B2157C8639771D3B6",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-registry-inventory-verification.md",
+    "SHA256": "B320162F42ECB785B2454AD0E4490CB9C473E8CC263E924116CB071B33D3268C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-06-synapse-vocabulary.md",
+    "SHA256": "DB671F6B36FE22E1E1EB891835C92F45ACB25C4F60C1003A24B4457B751809CC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-ai-module-restructure.md",
+    "SHA256": "1015FE73AF64DFD92736BC3332229A68DD57F566A51E3D805B571434AD277FAE",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-apps-compose-contracts.md",
+    "SHA256": "BAD81B045DA1509A6CFCA3FB166DE00927926F65B62E86E4E16A1478FDAFAC88",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-apps-drop-tests.md",
+    "SHA256": "3CE2FD1C488C3436EA6829812E566ACD8595915260D77D5DE2905FB4C78CD8FD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-assistant-neuron-tools.md",
+    "SHA256": "E199C66485FC38A2ED190CB3FC61348BBCCF182D1578CA3D3E25EF55E2CEF808",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-brain-runtime-sandbox.md",
+    "SHA256": "F80B586336B4A52E80B31306F19B8C177DE09A4EBDC8F3789DDA85195CED0DFB",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-connections-restructure.md",
+    "SHA256": "708409B3B35369D88CA9A43EA5E8885AE93743B51D65126E0F536FF8D24A4118",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-creator-live-apps-plan.md",
+    "SHA256": "067BF5AA9F91CF3CA8AAF32B9E657BA0604198851A7ECAB3297454E0000E3947",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-csharp-restructure.md",
+    "SHA256": "B10EC1233412C70F8DE1D806752B30559ADFED12BAA88D6CF02FF2331E2C3F24",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-framework-structure-pr1.md",
+    "SHA256": "105D5B280B98C214140FC1AEC14360AD97DB70E94AA652F6832AB1C6E1FB1899",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-framework-structure.md",
+    "SHA256": "4E4FBB906504493A9A0483A394BD766B4B48BCAC6FFC83E8064AABCE03A2AE0D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-framework-trash-removal.md",
+    "SHA256": "82106C44D674197B5F574FFCFD0E46D7AED786251C8CDB9FF04BB5C6543F504F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-07-postgres-table-placement.md",
+    "SHA256": "9BFA5A6C4D34BE2756DFBAB655FD2575868FC98AE5F2654D9CE8FB3CB1938A36",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-08-chat-projection-actions.md",
+    "SHA256": "0F9D931F9C6F0286A4F46D375D08375931B9B7EDFE3286F2D313DAAA7D903FDC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-08-e2e-harness-one-channel.md",
+    "SHA256": "38885A6FDE244BB58BB7F897F6E81EFB28C9F981CC9B081C620BD8EA5E112C2F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-08-fake-model-server.md",
+    "SHA256": "A53D81B70E307676D1C2A45E01C50C002F19FE43B3FD2D67DF435FAA6ADB5908",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-08-reactive-apps-one-flow.md",
+    "SHA256": "5D1B62CB21454140936DC83B3AF36C17A04F5CA4E0AB53884330199C2387D684",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-08-runtime-acknowledgement-batches.md",
+    "SHA256": "9EF712D819A4A867A5BE35A3397E15089FC39F24499C622BD27ABFD18AF4757D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-orchestration.md",
+    "SHA256": "99A57130C627864688F5C006FCDE7532B9401E6B6FB8F7FF9586C6E42124FA0C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-s1-shipped-reconciler.md",
+    "SHA256": "D8F05BF4BBFFECB6746CF35D898E42D52BA1257718EA826D54197E6F57D075E0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-s2-inference-state.md",
+    "SHA256": "3694A42A97236C853898EB792E241E988B8BE70E77F2A50C507A9FE96BB9C953",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-s3-routable-catalog.md",
+    "SHA256": "B470D81F3BE04CF2DAC2F849C064B8D39592817DA3CB643B2BDEB8895B2AFC4B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-s4-retained-signals.md",
+    "SHA256": "AA1A5675C984D5592FFC72DFD64E1315BD819EC310551CA086DC92EC13C455C1",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-derived-runtime-s5-run-identity.md",
+    "SHA256": "F86409C51CB263A2C9D1402CFBF29006D88A04584FE1B3CE71887ACB0E7189A8",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-self-improving-loop.md",
+    "SHA256": "422F4061F0889F094210777A64764E35F7AC9C7CAD7C0D2B17E81715E64D458A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-shell-desktop.md",
+    "SHA256": "004F41B27ECBF8E3944D14BFFD6089976DFC10932E27F697AF48BE618E3AF8D1",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-systemone-in-front.md",
+    "SHA256": "421D3660F8C090F3A33D8DF6465A41CCCC9FF3744B531C9502ABE483DBF5A831",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-09-tool-sources.md",
+    "SHA256": "2C1006F9CBF4D21CA339BE4E43C7B846FE510B4BD0250B532756A29F742AA418",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-aspire-1-candidate-container.md",
+    "SHA256": "52C8571113E8E8F58AF64F99F456769F1C27763F2A3881006E83F0A5B6A837FB",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-aspire-2-rolling-cluster.md",
+    "SHA256": "EDE61D027458D33CB18FF09176D1B095E0A9D31D8A7278AA3287706FEC35F78B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-aspire-3-compatibility-gate.md",
+    "SHA256": "CB6D8C4A1B25CF8B04C47F1B256E6B71E1F690DD0929D79440436537CAEA9D84",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-aspire-candidate-container.md",
+    "SHA256": "AFAA872A1B98E7B59557DA09A484A56EE07C7E9947E4364599D3C3ADD9EE82C2",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-b-digitalbrain-engineer.md",
+    "SHA256": "F827FDA88819CF999A74A5B2479CDBAD4FFD7FA8791B9B0FF81C36D58E4A23B7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-brain-as-data.md",
+    "SHA256": "FB3D12349E2D4ED7C38887259F60B57AF347205335FC81176BEEDD7B9D70649F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-c-musk-bitcoin-acceptance.md",
+    "SHA256": "4857307866276CCB932531F587E6B90072C65C4E484B88A6B3813E4550B70613",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-compute-in-the-kernel.md",
+    "SHA256": "6D409411110620739814E4D021847FEEF44D2159FA5ECD6EC81D9C397A19CCB5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-filmcraft-shell-and-jev-tools.md",
+    "SHA256": "6015A227874202297580740474CAB0BD437671EF84720A6BBA992D468B6AC0D2",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-intent-vs-observation-refactor.md",
+    "SHA256": "864F69965FE4BEB12BADE016B458CEA8476FC694DB890A4A94FA841ED5B0DEF0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-intent-vs-observation-refactor.prompt.md",
+    "SHA256": "0F95BF6D6C1FA97357A78C81CE138228A390913B1B411F9A46A46473A6FB0417",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-mesh-storage-core.md",
+    "SHA256": "5C9688CF3EF7E1EDC10A7EED3F375786C5440934F58C6EF71606F6D0D2A13DB4",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-mvp-ino-circles-logic.md",
+    "SHA256": "E5F66725C29769C4A95FB3719720DAEF99BFDA3B4B2CFB8DCE747EBADE5FA686",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-one-host-testing.md",
+    "SHA256": "317EA93239B106BADD559905808530C3273F08CBF3DC1E52FE280C8942DE35A8",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-synapse-subscription-contract.md",
+    "SHA256": "FE9E56BC62858F70B13916B3AF3AD36FD25A5F21670235924E487F80F53187FD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-10-windows-module.md",
+    "SHA256": "134E1B13A009313B6D994565DF2EE4754E8849B8B18B2717345AB6ACFBDF4F92",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-11-flame-stage.md",
+    "SHA256": "A349BBE2B8032229536FE71603B942D7CBFCB3D0818BE09D4EF1FD72E85A3B3D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-11-forking-loop-mvp.md",
+    "SHA256": "55DB00ED80138D18786C93FCB3117D6D701EF6AC9385EC41B32880B50FFB5497",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-circle-publication-fork.md",
+    "SHA256": "2EFC5D569F3323DD6685AF4466EF9C73E706667D2FBF54F4747003258EEA9983",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-flame-redesign.md",
+    "SHA256": "A89C0F04951E2CC99C781071E78AB7DCA6F8E63390996CDC8428F49730DE966E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-ledger-38-core-snapshot.md",
+    "SHA256": "1C839F3426E078AA1A3256C6F967F750B2BF132342BD76DA8924009C2408B105",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-presentation-hosting.md",
+    "SHA256": "B77DF67183CA7483E62A5D1ED627017AF7F6A3D2B294D45CDB5BB5C060C4E53A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-vlad-local-identity.md",
+    "SHA256": "55248408BFE550BA6468F1546156EAA0BE8B9E94849A3DCFD9478E4BBE381C86",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-12-workspace-design-system.md",
+    "SHA256": "02EAC201EA68D8A0E2BA2546752156316DBA38EEF9D2420BD292E31AC63561D0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-13-neuron-space-ui-prompt.md",
+    "SHA256": "1028A5EADAB97D4B067D0D5879C6916E73269AEE357C8B45440B07F69CC764B3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-13-neuron-space-ui.md",
+    "SHA256": "10C1F2FB70EEA5E63405A92901FF3DAF0F451E3B8632A3824E4309EFB68CBB42",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-14-app-composed-workspace.md",
+    "SHA256": "845E56DEA211C87FECB8CC3D5E1A16178D7DAB65B330FD59CD165DC7008266B5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-14-persistent-sharing-and-launcher.md",
+    "SHA256": "796F2BCEB4C15969EC5299E7B6CA1A2B79AE74071935CD2B53061012B568991A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-14-scripted-app-e2e.md",
+    "SHA256": "15084DC0752AC44F856E56C89DA21B1C2B017AAA9CA0C818BCC107D37929433B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-14-single-runtime-devices.md",
+    "SHA256": "D4F117D34CA8AE59E7E77D4928A86FB755525F4B0ED4917DB76E6D678CB31ACE",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-14-web-research-auth.md",
+    "SHA256": "0B2C9416F5D6BC375ABE544F9DDC1A73C4A71FB3FC5D0C44E0932D4286CAB32B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-15-agent-backed-chat-ino.md",
+    "SHA256": "09EEEC40D58A7B853AD94691B3CB6D1C1ABC6EFDA097E11D5B9EE920B189A63D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-15-dashboard-telemetry.md",
+    "SHA256": "B9A48C99154A4BECA4170A2D954A072AC4316B3E46490CF43AF662ACA1BF01F5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-15-immutable-script-views.md",
+    "SHA256": "EBAF227C3EDD5E8F8F757E7EBEC115E380B5A4A4B9C640E60634442BD13CB7FA",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/2026-10-15-run-profile.md",
+    "SHA256": "830111E881A179F210CAEDF34A49DE81082BB7DB3A909FAA73B9A55561538982",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/ai-migration-report.md",
+    "SHA256": "277A9D8B494AB401835840C9BA2D1C8DF3C2A7F86C8339DF0DC587962B2EE5D2",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/core-review.md",
+    "SHA256": "99A74E8E51A2D3AB946EF3C997A58B8F10CD29F2E7D93B74017EB4D3C7AE9D26",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/database-migration-report.md",
+    "SHA256": "4D5BC0E06FAED3513C5D5217D33C2569407CD092F0876DE7886F0A09E33224A3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/e2e-migration-report.md",
+    "SHA256": "4F7E39C2725DE6F401F5FE3324D1C2B6E66CAF281B21A1F2EF1E484F882C3654",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/gmail-migration-report.md",
+    "SHA256": "6153E81880DAAE2F37BB04B2BD03D5F3D2357458E11C3A498D67C41A3196AEE7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/module-review.md",
+    "SHA256": "FC837C1C60A662CEE327192E7EFA2537419956968E46B86BCB2686F811C7EBD9",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/oauth-migration-report.md",
+    "SHA256": "F85FC5634C4E9EA9D688C78518BEDEE49BD12284B820394BCAD3C2018F6036FD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/a2-task-4-5-fix-2.md",
+    "SHA256": "2D3087AD3F2A3776C1D04EF5DE014CB13D4E0C6B5B4AB9AB4432794A80C3A490",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/a2-task-4-5-fix-3.md",
+    "SHA256": "11056923DE0DF2C8296FD9016399E0B52DFF4CE178ACDFCCF21976932B1D1940",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/continuation-2026-10-11.md",
+    "SHA256": "2185FE599218C5452A6B7505C42020A437C1F3F0AEA4201453294500E1C5C6D5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-1.md",
+    "SHA256": "E6D1C50705EABF0EBCFCB04937AC2BDEFA9F651E8758E2EF13A2884A814DD4F6",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-10.md",
+    "SHA256": "D67EF8624CEC1BA34D495763A1EDB6AC85C97702FF234C5ED326DD53823A383C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-11-flutter.md",
+    "SHA256": "41403D5B94393685A7C68D315B8246C2047629D468D048664A36E904736E77F7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-3.md",
+    "SHA256": "2D1C67CA1ECAC9A0DECAFDF94CBDACC95222662487AB0496FB4B44C1CFCE3565",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-4.md",
+    "SHA256": "F778484EE537CB0B9EA3B0A29E523C2A67DFCB6F9F51389485DBEAD66873FCB5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-5.md",
+    "SHA256": "4323188AC21D488C7E4ECEFC7FE2B22251FF1BF87578B4E3CB9BDE26875D8817",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-6.md",
+    "SHA256": "3A726E9539548C27720D08A2B1B92C76CB5D0AC4875F2E5BF00B351976928173",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-7.md",
+    "SHA256": "BB116AD9A25703BF746F28477E540BE2CF43812D0A1B7E4DDF5B16949921ED9A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-8.md",
+    "SHA256": "0841468DE34A5B2730AE0BED8BDAA0643A1C7BC7C14718A4639855C8647FB304",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/opencode-prompts/task-9.md",
+    "SHA256": "8988FF7BA68B60B20B80CF7C8CD718EAD6409AFA6EB5F0ABFD5E91FA4A2B6E1D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/publishing-migration-report.md",
+    "SHA256": "5FE68D22DD698C718B262346460BC6404738B2EF73B54F8102EDB686BF77D005",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/shell-migration-report.md",
+    "SHA256": "A16D1D380954BA4C8014F43BCE412B5EE2818B2EB4088675B5747A94AE66F289",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/plans/shipped-apps-as-catalog.md",
+    "SHA256": "26CF0131A2F7DF16C4CD444953EF71BD05510EFD294B2748F2E12DCA05A704D5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/probes/registry-storage-gate.cs",
+    "SHA256": "9A11C020E77CFD4E4C70E157AB19859927CDE999B2080EB1BD41EF2E4811270A",
+    "Action": "retain-tooling-or-schema"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-05-semi-final-module-review.md",
+    "SHA256": "C8453075F818729D105AA8BC6120799982AA8832893ADBBD43BFF51044717342",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-a3-merge-summary.md",
+    "SHA256": "2EC8398546AABEE938D73EA1C91496E28E14E65834B9502AEDB0224C3866C42E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-brain-as-data-complexity.md",
+    "SHA256": "4ADFF6F31C8D75E27D6AD6777F8195D87F8D9012E755142FDEB05ED3B6D3AFB1",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-circle-publication-fork.md",
+    "SHA256": "542FC2676142C39725D3DCE18C2007AFA6782E2163D85BC19A2AABBD6EAEA621",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/colour-loop-logs.json",
+    "SHA256": "D830703C72C959C6099EC4DB133B94ED515CC29F75D76EF89F9062991F89736A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/creator-matrix-colour-choice-result.json",
+    "SHA256": "974E61F6201456D19CCBF30C49F59E7675B28B5778B74BAE4BBCF03EBC23FB43",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/creator-matrix-colour-repaired-result.json",
+    "SHA256": "50706442FC43A6AD5E306ADBF503B20CEF65E41DF400BD3DE1BF71A687D4CDFF",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/creator-matrix-two-notes-after-repair.json",
+    "SHA256": "0FDC08CB0C6D14EC9EED9675B7EAD3602B6780E1081ED724BDB37DB424AB90DC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/creator-matrix-two-notes-result.json",
+    "SHA256": "6F546CEA73D67DF4017A82034ACDEE4477EAFFABF32EB9EF7A6863F8E780B94B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/creator-matrix-uppercase-result.json",
+    "SHA256": "B1FB6678C8951FE50E4B905428C2C225575C99F439B1A3E2BD387F5B2113F73F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-evidence/two-notes-failure-logs.json",
+    "SHA256": "C1657D7002EDEDDC282F89A5DCA938211ECEE30021BCACFBEC16F908220FD16D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-creator-live-acceptance.md",
+    "SHA256": "772C452C271110B200778DDBC8E087586A6A7CB84CDF4E58C363F2B80B68BEFD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-handover-rulings.md",
+    "SHA256": "E57221339262B4736049F2A49D2CBAF728DD204D0130890AD610939E442761FC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-12-vlad-local-identity.md",
+    "SHA256": "CBF7902557BEA8E5B2BF85C17A8A011B7AF55F5060247146107871709E389207",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-13-ui-complexity-review.md",
+    "SHA256": "12B939C9B36D20858E375C0F81F75FA03B160489BF3BDC123BF42E16AD5924D3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-customer-researcher-publication-evidence.md",
+    "SHA256": "A1EF483E3AFE761C6F1EB95215D310B39B7EDE989CA2D93553ED0A0092FC1EC0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-flame-motion-audit.md",
+    "SHA256": "8D3CE897B210D578D9096B4EEDB471942A339FA3C6BF7B1E8225BA6DE2BCD7B3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-neuron-space-ui.md",
+    "SHA256": "5D52BC7BB7295769E0C3E2D2C59DA793A679D8CE9C432F8B5016830D704C84DE",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-os-composition-audit.md",
+    "SHA256": "AD395AA7FF5C7B99373F7C36A90E916DB06FE1CB24CBCE21EBBC132E39DD9C8C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-sharing-deployment.md",
+    "SHA256": "2A58725626C373E52AC40F60EC94DD044BB51A2674C600BD9DF9C56F9365E1D5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-single-runtime-verification.md",
+    "SHA256": "AB62981237A9B5454068D322AB93D9BC8C30F2A076B1AB5DC69176142EAD15A3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-ui-primitives-audit.md",
+    "SHA256": "36C104A0A7096509434C0C8E455CAA517F6FD505C0A9E1921126CE11E94F5125",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-workspace-default-evidence.md",
+    "SHA256": "56DDC82D511D9509022406DC4881E14F71A0B859A7BDAF3C309DFE473136773C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-workspace-polish-evidence.md",
+    "SHA256": "CC4121F8765E674D2CE8D87229F0A31809459274077053A71BF829BC37B471A5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-14-workspace-slice-evidence.md",
+    "SHA256": "5624B895B6554EFDDE968E2836FCEB9C7B3F6AA2A2448511A0D069B525838312",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/reviews/2026-10-15-deployment-integration-secrets.md",
+    "SHA256": "5B87C4C5C817498A33A9E6A61C565E6304F814D8A9B5A430C13474169893E7EB",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-04-module-self-description-design.md",
+    "SHA256": "0D70206B9C61CEA91A9367C113CBB86611DF7E916ECBAB989830BB407B4E2C2E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-05-apps-ownership-marketplace-design.md",
+    "SHA256": "2DC959C8EEDF1D9B56B949D990961A1941723FAEA2A63E2542DF27CE45EFC92E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-05-apps-simplification-design.md",
+    "SHA256": "95D2E1985930B2DCFAA5B82637B5849BE866D826C649B1E4D09C7A832A1CA0C3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-05-connector-connection-integration-design.md",
+    "SHA256": "38D146E324FD4B9D0A0847439BC915A5BAB061255B3C1C7C5606830D76936947",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-05-framework-restructuring.md",
+    "SHA256": "5EA103C85650C1E69ECBCE1B746D1E3A9A109407545A6FFDEA476F771E6F728B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-05-module-identity-amendment.md",
+    "SHA256": "C37E468F4A510D7B85DF32584CCE4F8E02089A316E018277F65B01C33E9F7C8C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-06-born-into-a-brain-sketch.md",
+    "SHA256": "7F5B2B59AF2A24837F9FCF1461734977A3F926ECF0FD9B7679B10650DCC00464",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-06-datavisualizer-design.md",
+    "SHA256": "C455DDF1E42DFCF93871922406110ED2C94FAA490693291FF0435F7162EA8016",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-06-registry-inventory-design.md",
+    "SHA256": "532CD60EDC2A0D84EA6BD5C423FDA9C069AD41A4BF6B039E679B2CFA10C0DEFD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-06-synapse-vocabulary-design.md",
+    "SHA256": "373DAA898ED5235ED4538795135601D0EDDCFF5594C5C8EB3ABFEE6CF64C706E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-ai-module-restructure-design.md",
+    "SHA256": "A3E8D91D161A1B112C0EC6671254D63DB34C12C1C759CFF9F0A79CC7BB987502",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-assistant-neuron-tools-amendment-1.md",
+    "SHA256": "11CC7FBCCAC6933271390987C4FC313EAAC1F3F220BEFC410A0FA8781206118E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-assistant-neuron-tools-design.md",
+    "SHA256": "CC801803E42363B9E95791B1A1CE4CEEA106B35356F15C1D22219439B64E143B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-brain-runtime-sandbox-design.md",
+    "SHA256": "95014B8420DFED52F7CB72A2E72F4B70A97FF19A6361B9BBAC6F3CC4B60058D7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-connections-restructure-design.md",
+    "SHA256": "9F3C4DF356E53017FDC09622EE76C396F8B9A73BB7014179B58CDCA3C4D5D21E",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-creator-live-apps-design.md",
+    "SHA256": "8667CEAF9A0BE0F62D1C8E1468A9E42E0D3979AC077C1E1E1151699844E76C57",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-module-audit.md",
+    "SHA256": "7D5A1D7FD4BC0C414D8C6FEF5438A8066AE07A00C973DE482ACFCBB84F137143",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-07-postgres-table-placement-design.md",
+    "SHA256": "799B3DB8EDC98808C1A020D57504B10BC7A85B1B6304DE594E3E229751927436",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-08-fake-model-server-design.md",
+    "SHA256": "B8F9977F8635D32BA7819416F1C704EEA316F70315D9D3B59A752D8FD27DC6FC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-08-reactive-apps-one-flow-design.md",
+    "SHA256": "910BD2669746D0EE1E6E639DD114E38FE83FD8E892B31CE1135545F9DA0CE276",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-brain-profiles-and-test-targets-design.md",
+    "SHA256": "52C8948C19B4F3586A16595C486359F15B7235EE01EB15C1328BA1CD732233C6",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-derived-runtime-design.md",
+    "SHA256": "DC6BF936F35033BCF3A6FEFF006794574B447200D3720C46FC12517E5F271906",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-kernel-design.md",
+    "SHA256": "88398C5ED9F4163BD3910411C580F578F1AC320527F63DA4B799958D1C9CAF42",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-self-improving-loop-design.md",
+    "SHA256": "3C776DF120C1F4FD566117B01B345D8D8EADBA57F17D82E8BE6F7E46810AC81B",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-shell-desktop-design.md",
+    "SHA256": "26964C4B1F7DE0E5AD5FF01423F7B95899EAEBD574399C3E773199D69F6407BC",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-systemone-in-front-design.md",
+    "SHA256": "CF49DDB4DDA57394D31C12F6EB09AD2EE73EBFC9F93ECE28D6CB3838A8571F0F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-09-tool-sources-design.md",
+    "SHA256": "B4F325E5341E7B222B4093EFEE569CFA5C036CACD0EC7F1358B7BBAA3F493DF0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-aspire-instance-neuron-design.md",
+    "SHA256": "62331BD5667FBE1B8ED09C74B3D4AF9EE1E519A70EF99999E7EE298781FF2B65",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-federation-circles-mesh-design.md",
+    "SHA256": "FDA6DF53FC4EA8E33877329D160CEF10183C8C9836237C758492A0855DC1831D",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-grpc-neuron-channel-design.md",
+    "SHA256": "527BC2A9A84FB9A7A64226299640EC3620B3BF26A53C1356E62D2F449D68ACFD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-mvp-ino-circles-logic-design.md",
+    "SHA256": "DAA9F965E6450EAF5676AAF8B9D6D5064B72674D133BDFDC70EBE16C087A1287",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-one-host-testing-design.md",
+    "SHA256": "8F313F6F312CE475F183377BF876C1249E3689EE8AE8FFC92C1D017575F6ED68",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-synapse-subscription-contract-design.md",
+    "SHA256": "8E25D917A503EDDA419CCAB09991ABF002EAAD7A96D5EB27F2CEE9F1F39E50B5",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-10-windows-module-and-federation-design.md",
+    "SHA256": "A9DFB0213F91AE6BD3FB2CCCF6BB2F53AD7054BBD5D979C4D39A2AF722C8FAFB",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-11-alive-os-feature-map.md",
+    "SHA256": "5C95F145238167D142D403BE599358197889F6D974CA263D32B45A52783B9AA3",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-11-circle-authorization-proposal.md",
+    "SHA256": "C147B0DB257A66A3E1ADCEB4CBD5A1E162F22D0EF947DB3A9190BFB7FD6F7A9A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-11-flame-stage-design.md",
+    "SHA256": "3511DB05A8F994BCE62C28B4166D09DDEE7D48D1C764A184E15196141ADE4E46",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-11-forking-loop-design.md",
+    "SHA256": "5CC88E4B247F2B95DE7252D92ADA393119D1756DD98C40B71EB18AF954147F00",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-11-sv-integrations-design.md",
+    "SHA256": "E6B1D54664FDA8A50037FA9FCB4809D7B467BC1F809A10AD12E6004E66F0FD60",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-assistant-path-benchmark.md",
+    "SHA256": "75E4620BBB977B7DC3BF8F5809A8CA3922CB257650274AEBB3B5BFF281002A59",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-circle-publication-fork-design.md",
+    "SHA256": "E90937FABD761ED7D8DA4EA47C563658E9DE3337B31B173C5D266DB8306BDBFD",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-composition-ownership-design.md",
+    "SHA256": "E6DBE260D345A7810E87AA75E95BF7A805FEEF5152D27400F1E16CFD4D23C1C8",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-flame-redesign-proposal.md",
+    "SHA256": "7D0F41122CCA1E46A392BB939420D7E7A1629FED4CBCCFD5BC9F238F2A527679",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-presentation-hosting-design.md",
+    "SHA256": "3BC461C2D8C6132F13FCB6D7766A10C5E77A8EF86107E9A96D4D9737A8CE8A29",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-vlad-live-brain-circle-design.md",
+    "SHA256": "620BF68396B243359390FED09FF496D740A64C0F09D67D8BE80A2391245DDA8A",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-12-workspace-design-system.md",
+    "SHA256": "D745A3035236EC82C6D1C9AC179E30BE5414A6E6BAF0F3E4F5160CC3F6B129F7",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-13-neuron-space-ui-design.md",
+    "SHA256": "B7A4ABB515E7E0A30B8A1F77E182CE385779631FAFD65766237BBD3A7DBE234F",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-14-app-composed-workspace-design.md",
+    "SHA256": "160E69135979B455D32AD73248F40F0B71D657B2BA66F513F0BE5AC80E20E09C",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-14-single-runtime-devices-design.md",
+    "SHA256": "9EBAD5EBBC680B18878CF8C3467BE5927D4678DB7CF9D9C874EED7E9C9C314B6",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-14-web-research-deployment.md",
+    "SHA256": "C1B73EEA81E23FE96C6DB58E4678D101AC02D1B3F0A59A53C556C5D0ACCAA341",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-15-agent-backed-chat-ino-design.md",
+    "SHA256": "D913F41760DDF5B8B9B7D569C91236CCF1869331308CB2CBE12C74BE4D3EAAD0",
+    "Action": "removed"
+  },
+  {
+    "Path": "docs/superpowers/specs/2026-10-15-run-profile-design.md",
+    "SHA256": "EA52D614D668D841FE22CAD9B0F02C849F4B4F540CEC1B0733F0B0C216904532",
+    "Action": "removed"
+  },
+  {
+    "Path": "features/os/Engineer/prompts/classify.md",
+    "SHA256": "E88AA5A22E674738F7985103AD063CA12644F2E1E09DFAC605BE31EB9E4B0335",
+    "Action": "retain-runtime-prompt"
+  },
+  {
+    "Path": "features/os/Ino/prompts/system.md",
+    "SHA256": "2890AAC45E8FD25E0EEC9ECC3349C40FA31066906973008275E940B5E02C68EB",
+    "Action": "retain-runtime-prompt"
+  },
+  {
+    "Path": "features/os/PhotoCraft/prompts/editor.md",
+    "SHA256": "2BD02C730B6060EB7293EA73732432A77E256F01734CD70DB7DF3ACFC7092616",
+    "Action": "retain-runtime-prompt"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/AI/README.md",
+    "SHA256": "21D780BC5E03E7F4E6E670662FDDD94BD9AA58C324C1A35712B980C887339BDE",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/AI/systemone-adapter/README.md",
+    "SHA256": "321561C0656E87F494AEC9161DCF536F2D7105A1809A1D667CB650EE58F4E7EB",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/ClickHouse/README.md",
+    "SHA256": "BB6C728256C4A3B7AE074973E72EB8E774A3B14C922B6292A7AF9ADCF1DE7A63",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Equifax/README.md",
+    "SHA256": "E0F69707790E127CDCD82806F641C2848CCF358097DEF9A7B87A92972B5E4130",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Google/Gmail/README.md",
+    "SHA256": "EDC758AF5F64119D52316E662B68AC6CF45978125BCDA0BFB16DC081D3145AD3",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Microsoft/CSharp/README.md",
+    "SHA256": "DC0A5C35E3D9EF7163B78972B1C79297074E515A943823075CE6001647B3E4D2",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Microsoft/GitHub/README.md",
+    "SHA256": "7655C47C3170B84589F41A2809E618444529CA47426C8F8332190D01892158C3",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Monnet/README.md",
+    "SHA256": "666D775CAFD6FCB042286524F0D2230B9D47219850EF5ABA5FFD18E6EB607BB4",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Postgres/README.md",
+    "SHA256": "58D425CB66F668D79F6C96778C1C76E821E38CDDB8D4F840F02F3A83C2AB1566",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/RiskSeal/README.md",
+    "SHA256": "D21042C11295956009FD9B9157F19506EF5BE67FC9DED20446EBA48DE08A2BEE",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Salesforce/README.md",
+    "SHA256": "EEE65B1E55361880C56E709404CF8F3B3B790E7C523EE5811C005CE0C76A59E4",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Supabase/README.md",
+    "SHA256": "2F1AB6FB399CCDC67E7C6640C6B141DB62C32F0201AC3A5B9CB4B0F941BF3499",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain.Modules/Twilio/README.md",
+    "SHA256": "89E8B30490FE3AF9790F188BAB9F24B156CF5C94D2E37455DEB78D0C3D36765D",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/DigitalBrain/README.md",
+    "SHA256": "0DCCDDF6103C4952C35818F7BF0525F2760E004385BF17A8B3BA588ABFEE24EE",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/Testing/DigitalBrain.Architecture.Tests/README.md",
+    "SHA256": "1E71C17ABA2D0BC50DE876A05A1C17D43E562E8111951416C26E0279D523D9D8",
+    "Action": "removed"
+  },
+  {
+    "Path": "src/Testing/DigitalBrain.Testing.Aspire/README.md",
+    "SHA256": "556FEABF95E4B0B8408636E2E260BBDC298B4BF8151F3C12AFD3392E984515F8",
+    "Action": "replace-with-packaging-pointer"
+  },
+  {
+    "Path": "src/Testing/DigitalBrain.Testing.Playwright/README.md",
+    "SHA256": "08B6809D19783C3FD04FBF5E2DA9B4119C30AE2E965FE08BF0B52CAB2CBF52A5",
+    "Action": "replace-with-packaging-pointer"
+  },
+  {
+    "Path": "src/Testing/DigitalBrain.Testing/README.md",
+    "SHA256": "1A63F0022863BFC3DB67F59E0891CED23DDF0F351C49439EDE41BC150CBDE15C",
+    "Action": "replace-with-packaging-pointer"
+  }
+]

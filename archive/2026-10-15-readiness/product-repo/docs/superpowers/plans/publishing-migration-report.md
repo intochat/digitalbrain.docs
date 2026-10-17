@@ -1,0 +1,11 @@
+# Shipped publishing migration
+
+The Apps module no longer constructs Platform caller stamps or hosts the privileged background service. Framework IShippedContentPublisher exposes only the registered publisher names and a per-publisher publishing operation. Apps registers that content publisher for its embedded/directory shipped sources.
+
+Platform ShippedContentStartup waits for ApplicationStarted, iterates registered content publishers, stamps a Platform identity for each declared publisher, invokes publishing, and restores the prior RequestContext in finally. Its dedicated hosting extension is registered by primary in PlatformHosting. There is no general RunAsPlatform API or arbitrary delegate.
+
+The module preserves package selection, source-owner validation, idempotent commit/verification/publish, per-package failure logging, and downstream cancellation semantics: only host cancellation stops startup publishing. Real publishing tests now run through the actual Platform hosted service; package grain owner enforcement remains exercised. A further test checks two registered publisher identities and restoration of an ambient caller.
+
+Verification: full Apps module test project passed 114/114 (zero skips). An initial run exposed two AppStorageFacts fixtures using the retired Postgres connection seed root; those owned fixtures now use IntegrationSchema.Key and the final full rerun passed. ShippedAppPublisher contains no CallerContextStamper.Stamp or CallerContext construction. Final key-helper edits to Apps fixtures are semantic-equivalent and compile through the subsequent full-project verification.
+
+Connection vocabulary cleanup: AccountProbeResult/AccountNames/AccountAction/AccountEndpoints/ScopedAccounts now use Connection equivalents, and Apps PackageAccount/AppAccountOptions/AppAccountSlot/AppAccountChoice use Connection equivalents. Physical files follow their renamed types. Serialized aliases apps.package-account and connections.probe-result remain pinned, PackageConnection IDs0/1/2 remain identical, and existing Accounts properties remain unchanged. ConnectionProbeResult retains its original implicit positional serialization shape; no field-ID additions were made. Identity Accounts are unchanged. Primary reconciled the two renamed reflected persisted-baseline type keys.
