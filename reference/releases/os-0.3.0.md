@@ -53,27 +53,35 @@ Every configuration key, environment variable and Aspire parameter that used the
 
 ### Legacy-key guard
 
-Outside Development, the server, MCP and AppHost processes refuse to start when any legacy name above is present. The error names each offending key and its replacement and never prints values. In Development the same check logs one warning and continues. The guard never deletes or moves anything. `DigitalBrainVersion` and the other MSBuild-only properties are not configuration and are not checked.
+Outside Development, the server, MCP and AppHost processes refuse to start when any legacy name above is present. The error lists every offender at once with its replacement, ends with "no compatibility layer; see release notes 0.3.0", and never prints values. The offenders are: configuration keys starting `DigitalBrain:`; environment variables starting `DigitalBrain__` (any case) or `DIGITALBRAIN_`; Aspire parameters containing `digitalbrain-`; and an existing `%LOCALAPPDATA%\DigitalBrain` directory while `%LOCALAPPDATA%\IntoChatOS` does not exist. In Development the same check logs one warning and continues. The key `IntoChatOS:Guard:IgnoreLegacyDataDirectory` disables only the local-directory check and exists for test hosts; operators should not set it. The guard never deletes or moves anything. `DigitalBrainVersion` and the other MSBuild-only properties are not configuration and are not checked.
 
 ## Neutral defaults
 
 Branded identity defaults are removed from os. Distributions such as IntoChat set their own values through configuration.
 
-| Setting | Default in 0.3.0 |
-| --- | --- |
-| Session cookie name | `os.session` |
-| Data protection application name | `os.v1` |
-| Data protection container name | `os-protection-v1` |
-| Account claim | `os.account` |
-| Brain claim | `os.brain` |
-| Identity directory key (`IntoChatOS:Identity:DirectoryKey`) | `identity-directory` |
-| Grain state container (`IntoChatOS:Orleans:GrainStateContainer`) | `os-state` |
+| Setting | Default in 0.3.0 | Configuration key |
+| --- | --- | --- |
+| Session cookie name | `os.session` | `IntoChatOS:Identity:CookieName` |
+| Data protection application name | `os.v1` | `IntoChatOS:Identity:ProtectionApplicationName` |
+| Data protection container name | `os-protection-v1` | `IntoChatOS:Identity:ProtectionContainerName` |
+| Account claim | `os.account` | `IntoChatOS:Identity:AccountClaim` |
+| Brain claim | `os.brain` | `IntoChatOS:Identity:BrainClaim` |
+| Identity directory key | `identity-directory` | `IntoChatOS:Identity:DirectoryKey` |
+| Hosted grant, runtime, cloud-user and cloud-session claims | `os.hosted-grant`, `os.runtime`, `os.cloud-user`, `os.cloud-session` | `IntoChatOS:Hosting:GrantClaim`, `RuntimeClaim`, `CloudUserClaim`, `CloudSessionClaim` |
+| Grain state container | `os-state` | `IntoChatOS:Orleans:GrainStateContainer` |
+| Development cluster id | `os-{guid}` | `Orleans:ClusterId` |
+| AppHost default service id | `os` | `IntoChatOS:Hosting:ServiceId` |
+| Hosted workspace page title | `Workspace` | none |
+
+The identity directory key is the persisted account directory. A wrong value makes every account look missing, so a deployment that keeps existing data must pin the value it already uses. The same applies to the grain state container, whose previous default was `digitalbrain-v2-state` before this release, and to the Orleans service and cluster ids.
 
 A distribution that previously relied on the branded defaults must set these explicitly, or its sessions and stored identity directory will not match.
 
 ## Open posture is loopback-only
 
-In Aspire run mode with the Open auth posture, a configured non-loopback URL now fails before the process binds. To serve an Open instance on a network you must set `IntoChatOS:Auth:AllowOpenOnNetwork=true`. That setting exposes an unauthenticated server to the network; use it only on networks you control. Listening URLs are logged at startup. Publish and container modes are not affected, and isolated candidate containers opt in explicitly.
+The check applies only when the AppHost marks the process as run mode (`IntoChatOS:Hosting:Mode=run`, written by the AppHost on the kernel and MCP resources in run mode only), the process is not in a container, and the auth posture is Open. In that case a configured non-loopback URL fails before the process binds. Wildcard hosts (`+`, `*`, `0.0.0.0`, `[::]`) and bare `ASPNETCORE_`/`DOTNET_` `HTTP_PORTS`/`HTTPS_PORTS` count as non-loopback. If code binds a wildcard address after startup, the host stops with exit code 1 and an error log. To serve an Open instance on a network you must set `IntoChatOS:Auth:AllowOpenOnNetwork=true`. That setting exposes an unauthenticated server to the network; use it only on networks you control. Listening URLs are logged at startup. Publish and container modes are not affected, and isolated candidate containers and AppHost live builds set the opt-in explicitly.
+
+Do not remove or rename the `IntoChatOS:Hosting:Mode` marker in a distribution: without it the loopback check silently stops applying.
 
 ## Frozen cryptographic contexts
 
