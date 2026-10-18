@@ -966,3 +966,14 @@ The review is `clients/intochat/projects/briefs/clean-architecture/w4-design-rev
 | M8 test naming | **Disagreed in part.** The brief is explicit, so the style is kept; the owner decides (Q8). |
 | L1 to L5 | **Accepted.** The `FORBIDDEN` arm is noted, the introspection cache window is stated with eviction on revoke, the OS validates provider keys, the real IP header is O7, and the consent line already exists (O6). |
 | Prototype citation drift | **Fixed.** Re-verified `App.tsx:21`, `:840`, `:892`, `:943`, `:945`, `:970`, `:2430`, `:2939`, `:3020`, `:3229`, `:3231`, `:3626`, `:4435`, `:790`. |
+
+## Owner decisions (2026-10-18)
+
+Design approved; implementation starts with PR 10 and PR 0.
+
+- Q4: in-app notifications are rendered by the OS feed (DigitalBrain UI). Platform stores preferences and emits events only.
+- Q5: deletion grace period is 7 days with cancel (design default).
+- Q6: API key scope is decided later; v1 keys grant the OS chat API only until then (narrowest option, no slug in the key).
+- Q7: custom top-up bounds €5–1000; no Stripe Tax for now.
+- Q8: new tests keep the platform style `Method_Condition_Result`. Section 9 examples are to be read in that style.
+- Re-review low notes: PR 1b must not create `UserSession` rows before PR 2 (session creation moves to PR 2); outbox polling uses an overlap window or safety lag.
