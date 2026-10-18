@@ -38,3 +38,9 @@ Before charging for third-party apps, decide seller of record, tax collection re
 Do not quote an arbitrary marketplace take rate. Model what the platform actually provides and what each party pays. A commission on app revenue, a compute fee, and a Cloud subscription can overlap confusingly unless the customer sees an understandable total. Measure contribution for the platform and the publisher separately.
 
 The founder-mentioned separate billing implementation is an unconfirmed option, not a delivery dependency. Evaluate it only when code, contracts, operating access, security behavior, and reconciliation tests are available. See [pricing](./pricing), [marketplace](./marketplace), and [founder decisions](./hypotheses).
+
+## 2026-10-18: MIT stamp limited to SDK packages
+
+The os repository now stamps `MIT` only on SDK-tier packages: the `DigitalBrain` vocabulary, `DigitalBrain.Client`, `DigitalBrain.Client.Orleans`, `DigitalBrain.Aspire.Client`, the testing harness (`DigitalBrain.Testing`, `DigitalBrain.Testing.Aspire`, `DigitalBrain.Aspire.Testing`, `DigitalBrain.Testing.Playwright`) and every `*.Contracts` package, including `DigitalBrain.Authority.Contracts`. Runtime packages (framework, authority, `DigitalBrain.Authority.Hosted`, module runtimes, hosting adapters, the OS host) carry no licence expression. `dotnet pack` accepts that without a warning. The runtime licence is still undecided and follows the recommendation above.
+
+Branded claim names in the session cookie (`intochat.account`, `intochat.brain`, the hosted `intochat.*` grant claims) are now configurable, but their defaults keep the historical values because live cookies carry them. The identity directory key `intochat-identity-directory` is persisted state. Renaming any of them needs a planned migration, for example in v0.2, that signs every session out.
