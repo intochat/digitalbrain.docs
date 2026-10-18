@@ -375,7 +375,7 @@ Fold list and targets (reference the spec's table; `Aspire.Testing` is **kept**:
 - READMEs: replace the three identical stubs under `src/Testing/*/README.md` with consumer sections: install, `TestBrain.Create().WithModule<>()`, `BrainHostFixture`, `TokenEndpointStub`, `FakeModelServer`; `DigitalBrain.Aspire.Testing` gets a README and `PackageReadmeFile`; `DigitalBrain.Testing.Playwright` README states the browser-install requirement.
 - Verify `dotnet pack DigitalBrain.slnx -c Release -o artifacts/packages` yields `DigitalBrain.Testing`, `DigitalBrain.Testing.Aspire`, `DigitalBrain.Aspire.Testing`, `DigitalBrain.Testing.Playwright` `.nupkg` + `.snupkg` with version from `VERSION`; `TestingPackageFacts.PackableTestingProjectsReferenceNoPlatformInternalsOsOrAppHost` stays green.
 - If `publish.yml`/`release.yml` exist (deployment workstream), confirm their pack step is solution-wide so these four are included; otherwise note in the PR body that `ci.yml` validates and the deployment workstream pushes. Document the `GITHUB_TOKEN` `read:packages` requirement in `README.md` of os until the repo is public.
-- Handbook: `reference/testing.md` with the taxonomy, the fixture pattern, the shard table, and the list of dropped or rewritten tests with reasons (from PR bodies 1a, 2c–2h).
+- Handbook: [`reference/testing.md`](../reference/testing.md) with the taxonomy, the fixture pattern, the shard table, and the list of dropped or rewritten tests with reasons (from PR bodies 1a, 2c–2h).
 - [ ] **Commit** `packaging: testing package READMEs and consumer docs`. **PR 5.**
 
 ---

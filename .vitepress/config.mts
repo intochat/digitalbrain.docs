@@ -45,6 +45,7 @@ const readiness = group('Implementation Readiness', 'readiness', [
 const reference = group('Reference', 'reference', [
   ['Evidence & sources', 'evidence'],
   ['Repository relationship', 'repositories'],
+  ['Testing', 'testing'],
   ['Glossary', 'glossary'],
   ['Founder decisions', 'decisions'],
   ['Maintenance', 'maintenance'],
