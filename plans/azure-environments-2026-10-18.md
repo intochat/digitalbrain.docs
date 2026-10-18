@@ -639,3 +639,7 @@ Retirement saves about $30-45 per month. The O7 moves remove about $37 per month
 - G-K: ADR A5 accepted (Kafka SASL PLAIN with a send/listen-only key in Key Vault; OAUTHBEARER later).
 - Implementation PRs may start; no Azure resource is created until the owner approves the run (G2).
 - O8 must include a scheduled stop/start job for the test Postgres server (Azure restarts stopped Flexible Servers after 7 days).
+
+### Note on S1 (2026-10-18)
+
+os#197 accepts a service URI in the existing `Orleans__*` keys (as this section specifies) and also adds `*Uri` variants; S2 uses the existing keys. S2 must set `AZURE_CLIENT_ID` (or the module's `ManagedIdentityClientId`) to the user-assigned identity on the silo app. Token auth requires https URIs.
