@@ -843,3 +843,8 @@ Blocking map:
 ## Spike status (2026-10-18, lead)
 
 Spike item 2 passed (commit `0ff085728` on `spike/orleans-codegen-contracts`): neutral `Signal`, `NeuronId`, `Trace`, `SignalNudge` copies with the same aliases and field ids produce byte-identical output for base, exact, polymorphic, shared-reference and `BrainLogModel`-shaped envelopes; a neutral `INeuronObserver` is adapted at the call boundary by a provider-declared `INeuronObserverGrain`, with method ids unchanged and no measurable overhead. Consequences: PR 9z is unblocked in principle; one-way semantics must be redeclared on the provider face (`[OneWay]`), and the `[Interleaves]` → `MayInterleave` mapping stays the open item for PR 4; a golden test is required per contract shape (record structs needed special detection in the generator). Lead re-ran: baseline 10/10, spike 16/16.
+
+## Owner decisions (2026-10-18)
+
+- Design approved. PRs 1, 2a and 3 start in parallel; W2 gRPC audit starts.
+- Fixtures come from a reproducible build of `bdb79fc21` with the checked-in test seal key only; no export from the live hosted kernel.
