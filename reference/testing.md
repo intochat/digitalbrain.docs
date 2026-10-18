@@ -62,6 +62,8 @@ The four testing packages are published to the GitHub Packages feed `https://nug
 
 Until `os` is public, restoring from the feed needs a GitHub token with the `read:packages` scope. The `DigitalBrain.Testing` README shows a `nuget.config` that reads the token from an environment variable.
 
+Publishing belongs to the deployment workstream's `publish.yml`, which this work does not create. It will run `dotnet nuget push artifacts/packages/*.nupkg --source https://nuget.pkg.github.com/intochat/index.json --api-key $GITHUB_TOKEN --skip-duplicate`.
+
 Consumer documentation for the four packages is in their READMEs: `DigitalBrain.Testing`, `DigitalBrain.Testing.Aspire`, `DigitalBrain.Testing.Playwright` and `DigitalBrain.Aspire.Testing`.
 
 ## Nightly workflow
@@ -79,9 +81,9 @@ Consumer documentation for the four packages is in their READMEs: `DigitalBrain.
 | Shard | Assemblies (current `test-shards.json`) | Wall time, run 39097999099 | Summed assembly durations, run 39091514026 (contention-bound; wall time per shard is lower) | Slowest assembly |
 | --- | --- | --- | --- | --- |
 | `unit` | Architecture, Aspire.Hosting, Client, Deployment, Modules.Microsoft.Playwright, Modules.Microsoft.Roslyn, Modules.Qdrant and Modules.Tools `.Tests.Unit`, plus every `*.Tests.Hosting` | 2:21 | 1:45 | `DigitalBrain.Architecture.Tests.Unit` 1:15 |
-| `integration-a` | 7, including `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration` and `DigitalBrain.Framework.Tests.Integration` | 3:04 | 3:27 | `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration` 2:38 |
-| `integration-b` | 9, including `DigitalBrain.Authority.Tests.Integration`, `DigitalBrain.Modules.Apps.Tests.Integration` and `DigitalBrain.OS.Tests.Integration` | 2:09 | 3:11 (without Authority) | `DigitalBrain.Modules.Apps.Tests.Integration` 2:04 |
-| `integration-c` | 11, including `DigitalBrain.Modules.AI.Tests.Integration` and `DigitalBrain.OS.Tests.Unit` | 2:15 | 4:49 | `DigitalBrain.Modules.AI.Tests.Integration` 1:59 |
+| `integration-a` | `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration`, `DigitalBrain.Modules.Salesforce.Tests.Integration`, `DigitalBrain.Framework.Tests.Integration`, `DigitalBrain.Modules.Equifax.Tests.Integration`, `DigitalBrain.Modules.Monnet.Tests.Integration`, `DigitalBrain.Modules.Mcp.Tests.Integration`, `DigitalBrain.Modules.ClickHouse.Tests.Integration` | 3:04 | 3:27 | `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration` 2:38 |
+| `integration-b` | `DigitalBrain.Authority.Tests.Integration`, `DigitalBrain.Modules.Apps.Tests.Integration`, `DigitalBrain.Modules.Microsoft.Aspire.Tests.Integration`, `DigitalBrain.Client.Orleans.Tests.Integration`, `DigitalBrain.Modules.Twilio.Tests.Integration`, `DigitalBrain.Modules.Time.Tests.Integration`, `DigitalBrain.Modules.RiskSeal.Tests.Integration`, `DigitalBrain.OS.Tests.Integration`, `DigitalBrain.Modules.Microsoft.Windows.Tests.Integration` | 2:09 | 3:11 (without Authority) | `DigitalBrain.Modules.Apps.Tests.Integration` 2:04 |
+| `integration-c` | `DigitalBrain.Modules.AI.Tests.Integration`, `DigitalBrain.OS.Tests.Unit`, `DigitalBrain.Modules.Postgres.Tests.Integration`, `DigitalBrain.Modules.Microsoft.GitHub.Tests.Integration`, `DigitalBrain.Modules.Microsoft.Playwright.Tests.Integration`, `DigitalBrain.Modules.Flame.Tests.Integration`, `DigitalBrain.Modules.Google.Gmail.Tests.Integration`, `DigitalBrain.Mcp.Tests.Integration`, `DigitalBrain.Modules.ArtCraft.Tests.Integration`, `DigitalBrain.Modules.Microsoft.Orleans.Tests.Integration`, `DigitalBrain.Modules.Supabase.Tests.Integration` | 2:15 | 4:49 | `DigitalBrain.Modules.AI.Tests.Integration` 1:59 |
 | `integration-d` | `DigitalBrain.Modules.Flutter.Tests.Integration`, `DigitalBrain.Testing.Tests.Integration`, `DigitalBrain.Modules.Circles.Tests.Integration` | 1:22 | 2:37 | `DigitalBrain.Modules.Flutter.Tests.Integration` 1:32 |
 
 The other jobs in run 39097999099 took 6:27 (build) and 2:03 (format). `DigitalBrain.Authority.Tests.Integration` did not exist yet in run 39091514026, so it has no summed duration.
