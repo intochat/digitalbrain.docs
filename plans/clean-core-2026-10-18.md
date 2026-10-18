@@ -10,6 +10,32 @@ Owner decisions this document is built on (2026-10-18):
 - **D2.** Hosted brain state written by v0.1.0 and v0.2.0 must survive. Every format change needs dual-read and a startup migration, as set out in decisions 11–13 of `plans/codebase-simplification-2026-10-18.md`.
 - **D3.** A codegen spike decides how Orleans-free contracts get grain code and serializers. **Result (2026-10-18): GO.** A source generator in the Orleans provider emits codecs, copiers and alias registrations from neutral attributes, with byte-identical output. Section 2.6 records the result and its limits.
 
+## Review resolution (independent review `w1-design-review.md`, 2026-10-18)
+
+The review covered the version written before the spike result. Findings that concern the dropped fallback design (JSON invocation and envelope) are marked moot. Each finding was re-checked against `os` at `bdb79fc21`.
+
+| Finding | Resolution | Where |
+|---|---|---|
+| C1 outcome B cannot carry observer references | Moot for the fallback, which is dropped. The underlying need stays: observer references must cross a neutral contract. Defined as spike item 2 | 2.4, 2.6 |
+| C2 storage covers state records only | Accepted. Envelopes (`BrainEntry`, `BrainSnapshot`) and journalled `Signal[]` are added to the byte-identical scope and to the golden facts. The "force a snapshot in the new codec" migration is removed: no codec changes, and a key migration copies opaque bytes | 4.1, 4.3, 6 |
+| C3 SPI misses neuron-facing Orleans features | Accepted. Each feature has a decision table with file counts, and "mechanical" is dropped | 2.4a |
+| H1 no `v0.2.0` tag; `v0.1.0` predates the split | Accepted (72 tags, newest v0.1.x; `c7cf32c4d` set VERSION 0.2.0). Fixtures come from a reproducible build of `bdb79fc21` with a test seal key | 4.4 |
+| H2 architecture sample and baseline do not work | Accepted. ArchUnitNET 0.13.4 has no freeze and does not see test code. R-A1 becomes a source-scan ratchet like `ConfigurationKeyFacts`. The sample compiles at PR 1. Orleans is 10.4 | 3, 6 |
+| H3 `CurrentBrain.Get` changes mid-migration | Accepted: adapter first, callers next, switch last, with an equivalence fact | 3 |
+| H4 `NeuronAddress` brain prefix ambiguous | Accepted. `Key` is the full grain key; `Brain` is derived and null for brain-less neurons | 2.3, 3 |
+| H5 implicit grain names | Accepted. The manifest records the effective grain type, and PR 5 pins implicit names | 4.2 |
+| H6 rollback incomplete | Accepted, stated honestly with mitigations | 4.3 |
+| H7 spike shape differs from A and B | Resolved by the spike update. `FooProxy` dropped, spike attribute names adopted, invokable ids proven unchanged. The neutral `Signal` base and observer argument are spike item 2 | 2.2, 2.6 |
+| M1 counts | Fixed: about 2,175 field ids (545 `[Id(n)]` + 1,630 `[property: Id(n)]`); 96–97 non-test `GetGrain` files | 1, 4.1 |
+| M2 Watch selection uses CLR short names | Accepted; added to 4.1 | 4.1 |
+| M3 in-memory fidelity | Accepted: response timeout, queued self-calls, one-way calls behind the lock | 2.5 |
+| M4 Dapr gaps | Accepted | 2.7 |
+| M5 PR sizing | Accepted. PRs 6, 8 and 9 are split, and the core flip is its own PR | 8 |
+| M6 `Id` before PR 5 | Accepted: `Id` keeps reading `GrainId` until PR 5, with an equivalence fact | 8 (PR 4) |
+| M7 performance | The fallback cost is moot. PR 5 reports benchmarks | 8 (PR 5) |
+| M8 per-host generation | Kept as open question 2, decided before PR 5 | 9 |
+| L1–L4 | Accepted. `IBrain.Read` naming noted; the Platform directory removed from PR 1; `publisher` format added to the wire check; `TypeLoadException` mapping kept | 2.2, 5, 7 |
+
 ## 1. Problem statement
 
 **The main source of complexity is that the neuron model is not an abstraction over Orleans: it is Orleans.** Every concept the product names (neuron, observer, brain, signal identity, module, state, timer, caller) is defined by an Orleans type or attribute. Every project above the vocabulary therefore inherits Orleans hosting, Orleans codegen and the Orleans binary format.
@@ -20,7 +46,7 @@ The evidence:
 - The authoring base class is a grain: `Neuron : Grain, INeuron` (`DigitalBrain.Framework/DigitalBrain.Framework/Runtime/Neuron.cs:12`). It holds an Orleans `ObserverManager` (`:16`), its identity is the Orleans `GrainId` (`:24`, commented "Transitional"), it keeps state in `IPersistentState<TState>` (`:131`), and its publish path depends on the `GrainContext` (`:109`).
 - Modules compose only through Orleans: `Module.Configure(ISiloBuilder silo)` (`DigitalBrain.Framework/DigitalBrain.Framework/Modules/Module.cs:16`), with 72 `ISiloBuilder` mentions in production and test code.
 - Signal identity is the Orleans alias. `SignalId` is documented as "its `AliasAttribute` value" (`DigitalBrain/Signals/SignalId.cs:4`), and the kernel reads `AliasAttribute` by reflection (`DigitalBrain.Framework/DigitalBrain.Framework/Runtime/Kernel/CompiledTypes.cs:29,85`).
-- The persisted format is the Orleans binary serializer. `BrainGrainStorage` stores `serializer.SerializeToArray(grainState.State)` under the key `grainId.ToString()` (`DigitalBrain.Authority/DigitalBrain.Authority/Storage/BrainGrainStorage.cs:12,20`). `BrainLog` serializes entries and snapshots with the Orleans `Serializer` (`.../Storage/BrainLog.cs:132,187`). Azure blob grain storage uses `OrleansGrainStorageSerializer` (`DigitalBrain.Modules/Microsoft/Orleans/DigitalBrain.Modules.Microsoft.Orleans/Storage/OrleansStorageHosting.cs:75-76`). The roughly 686 `[GenerateSerializer]`, 854 `[Alias]` and 545 `[Id]` attributes are a storage schema, not just wire annotations.
+- The persisted format is the Orleans binary serializer. `BrainGrainStorage` stores `serializer.SerializeToArray(grainState.State)` under the key `grainId.ToString()` (`DigitalBrain.Authority/DigitalBrain.Authority/Storage/BrainGrainStorage.cs:12,20`). `BrainLog` serializes entries and snapshots with the Orleans `Serializer` (`.../Storage/BrainLog.cs:132,187`). Azure blob grain storage uses `OrleansGrainStorageSerializer` (`DigitalBrain.Modules/Microsoft/Orleans/DigitalBrain.Modules.Microsoft.Orleans/Storage/OrleansStorageHosting.cs:75-76`). The roughly 686 `[GenerateSerializer]`, 854 `[Alias]` and about 2,175 field ids (545 `[Id(n)]` plus 1,630 `[property: Id(n)]` on positional records) are a storage schema, not just wire annotations.
 - Addressing bypasses the brain. `NeuronId` says "the brain alone maps an id to a grain" (`DigitalBrain/Neurons/NeuronId.cs:10-11`). In practice there are 375 `GetGrain<` call sites, 97 of them in non-test files.
 
 **Consequences.**
@@ -101,6 +127,10 @@ public sealed class DefaultNeuronTypeAttribute(string type) : Attribute { public
 [AttributeUsage(AttributeTargets.Method)] public sealed class ReadOnlyCallAttribute : Attribute;  // was Orleans.Concurrency.ReadOnly
 [AttributeUsage(AttributeTargets.Method)] public sealed class OneWayCallAttribute : Attribute;    // was Orleans.Concurrency.OneWay
 
+// Further scheduling attributes, not in the spike set but required by contracts that must become Orleans-free (2.4a):
+[AttributeUsage(AttributeTargets.Class)]  public sealed class InterleavesWhenAttribute(string predicate) : Attribute;  // was [MayInterleave] (1 use, LlmNeuron.cs:13)
+[AttributeUsage(AttributeTargets.Method)] public sealed class CallTimeoutAttribute(string timeout) : Attribute;       // was [ResponseTimeout] (26 uses in 12 files, most on Contracts)
+
 // Not covered by the spike; to be defined with the generator extensions in PR 5 and PR 9 (section 2.6, limits):
 // neutral equivalents of [Immutable] and of [GenerateSerializer] on structs and enums, plus an implementation-side
 // type name for the 130 [GrainType("...")] neuron classes (called [NeuronType] in this document).
@@ -124,7 +154,11 @@ public interface INeuronObserver
 }
 
 [NeuronAlias("brain"), DefaultNeuronType("brain")]   // was [Alias("brain"), Orleans.Metadata.DefaultGrainType("brain")] (IBrain.cs:11)
-public interface IBrain : INeuron { Task Create(Owner owner); Task<State> Read(); }
+public interface IBrain : INeuron
+{
+    Task Create(Owner owner);
+    Task<State> Read();   // overloads INeuron.Read(long, int), as today's IBrain.cs:22 does
+}
 ```
 
 `SignalId` stays a value with the same string. Only its source attribute changes:
@@ -150,22 +184,30 @@ namespace DigitalBrain.Runtime;
 
 // Identity and addressing. The brain is the only place an id becomes a reference.
 public readonly record struct BrainId(string Value);
-public readonly record struct NeuronAddress(BrainId Brain, string NeuronType, string Key)
+
+// Key is the FULL grain key, including any "{brain}/" prefix (BrainKey.cs:3). Brain is derived from it and is
+// null for brain-less neurons (platform, cluster, ledger), which BrainGrainStorage serves through fixedBrainScope today
+// (BrainGrainStorage.cs:8,34). StorageKey equals today's GrainId.ToString().
+public readonly record struct NeuronAddress(string NeuronType, string Key)
 {
-    // The storage key and the observable NeuronId string: today's GrainId.ToString() ("{type}/{key}").
+    public BrainId? Brain => BrainKey.ScopeOf(Key) is { } brain ? new BrainId(brain) : null;
     public string StorageKey => $"{NeuronType}/{Key}";
 }
 
+// Marker for runtime endpoints that are not neurons: the ~58 grain interfaces that do not derive from INeuron (2.4a).
+public interface IRuntimeEndpoint;
+
 public interface INeuronResolver                         // implemented by each runtime
 {
-    T Resolve<T>(BrainId brain, NeuronId id) where T : INeuron;
-    T ResolveSystem<T>(string key) where T : INeuron;    // non-brain neurons (platform, cluster); Framework/Authority resolvers only
+    T Resolve<T>(BrainId brain, NeuronId relative) where T : class;   // INeuron or IRuntimeEndpoint; composes "{brain}/{relative}"
+    T ResolveKey<T>(string fullKey) where T : class;                  // brain-less neurons and the transitional raw-key path; Framework/Authority only
 }
 
 // Activation lifecycle.
 public interface INeuronContext
 {
     NeuronAddress Address { get; }
+    string Key { get; }                                  // = Address.Key; replaces GetPrimaryKeyString() (96 production files)
     IDigitalBrain Brain { get; }
     ICallerContext Caller { get; }
     INeuronTimers Timers { get; }
@@ -173,8 +215,11 @@ public interface INeuronContext
     ISignalFanout Fanout { get; }
     IServiceProvider Services { get; }
     TimeProvider Time { get; }
-    void KeepAlive(TimeSpan? duration);                  // was DelayDeactivation (Modules/Time/.../Timers/TimerNeuron.cs:36,45)
+    T Self<T>() where T : class;                         // replaces this.AsReference<T>() (13 files); the call goes through the scheduler and never re-enters the turn
+    void KeepAlive(TimeSpan? duration);                  // was DelayDeactivation (3 files; TimerNeuron.cs:36,45)
+    void Deactivate();                                   // was DeactivateOnIdle (3 files)
 }
+public interface IDeactivatingNeuron { Task OnDeactivating(DeactivationReason reason, CancellationToken cancellationToken); }  // was OnDeactivateAsync (10 overrides)
 // IActivationHandler<T> exists today but is bound to Neuron : Grain (Framework/Runtime/IActivationHandler.cs:5); it keeps its shape.
 
 // Messaging and signals. The journal is keyed by address, not GrainId (SignalJournal.cs:8,15).
@@ -223,7 +268,15 @@ public interface IRemindedNeuron { Task OnReminder(string name, CancellationToke
 
 // Caller context: kernel-stamped provenance, carried by the runtime.
 public interface ICallerContext { CallerContext? Current { get; } }
-public interface ICallerContextCarrier { IDisposable Enter(CallerContext caller); }  // Orleans: RequestContext
+public interface ICallerContextCarrier                   // Orleans: RequestContext
+{
+    IDisposable Enter(CallerContext caller);
+    IDisposable Suppress();                              // run as internal: replaces get/remove/restore of the caller key (11 files)
+}
+public interface ITraceCarrier { Trace? Current { get; } IDisposable Enter(Trace trace); }   // replaces TraceContext over RequestContext + TraceOutgoingFilter
+
+// What a call filter sees. Source is the calling neuron, if any: the nudge provenance check reads it (NeuronCallFilter.cs:24-34).
+public sealed record NeuronCall(NeuronAddress Target, NeuronAddress? Source, Type Contract, MethodInfo Method, object?[] Arguments, CallerContext? Caller);
 public interface INeuronCallFilter { Task Invoke(NeuronCall call, Func<Task> next); } // Orleans: IIncomingGrainCallFilter adapter
 
 // Module composition without ISiloBuilder.
@@ -231,7 +284,7 @@ public interface IRuntimeBuilder
 {
     IServiceCollection Services { get; }
     IConfiguration Configuration { get; }
-    IRuntimeBuilder AddNeuron<TImplementation>() where TImplementation : class, INeuron;   // reads [NeuronType]
+    IRuntimeBuilder AddNeuron<TImplementation>() where TImplementation : class;   // INeuron or IRuntimeEndpoint; reads [NeuronType]
     IRuntimeBuilder AddStateStore(string name, Func<IServiceProvider, INeuronStateStore> store);
     IRuntimeBuilder AddCallFilter<TFilter>() where TFilter : class, INeuronCallFilter;
     bool TryGetProvider<TBuilder>(out TBuilder? builder) where TBuilder : class;  // escape hatch; ISiloBuilder reachable only inside the provider
@@ -242,7 +295,7 @@ public interface IRuntimeBuilder
 
 ### 2.4 What the Framework types become
 
-`Neuron` stops being a `Grain`. It is a plain class that a runtime hosts and gives a context at activation. The public surface used by about 110 neuron classes is kept, so the source migration is mechanical: `Id`, `PublishAsync`, `Save`, `SaveQuietly`, `Clear`, `Snapshot`, `Exists`, `OnCommitted`.
+`Neuron` stops being a `Grain`. It is a plain class that a runtime hosts and gives a context at activation. The public surface used by about 110 neuron classes is kept, so most call sites keep compiling; section 2.4a lists the Orleans features that do need rewriting. The kept surface is `Id`, `PublishAsync`, `Save`, `SaveQuietly`, `Clear`, `Snapshot`, `Exists`, `OnCommitted`.
 
 ```csharp
 namespace DigitalBrain.Framework;
@@ -302,6 +355,32 @@ Today `Neuron.Announce` attaches signals to an `AsyncLocal`, runs the storage wr
 - Watch leases (`ObserverRenewal`, `Neuron.cs:21`; the client renewal loop, `DigitalBrain.Client/DigitalBrain.Client.Orleans/SignalSubscription.cs:63,93-99`) become a provider detail and leave the contract. The `Guid` returned by `Watch` stays, because watchers use it to detect a fresh activation (`INeuron.cs:20-23`).
 - `WatchStream` exists twice, in `DigitalBrain.Client/DigitalBrain.Client/Watching/WatchStream.cs` and `DigitalBrain.Client/DigitalBrain.Client.Orleans/Watching/WatchStream.cs`. The copies are near-identical; a diff shows only two extra cancellation tokens and a required versus optional `onSubscribed`. One `internal` copy moves to core, taking the superset signature.
 
+### 2.4a Orleans features neurons use directly: one decision each
+
+The migration is wide, and it is **not** a pure rename. Every Orleans feature that neuron code touches gets a neutral equivalent or an explicit decision. Production file counts exclude tests (grep on `bdb79fc21`).
+
+| Feature in use today | Prod files | Decision |
+|---|---|---|
+| `GetPrimaryKeyString()` | 96 | Neutral: `Context.Key` (full grain key) |
+| `GrainFactory` / `GetGrain` | ~97 | Neutral: `IDigitalBrain.Get<T>` or typed resolvers (section 3) |
+| `this.AsReference<T>()` self-calls, often to leave the current turn with a one-way call (Apps, AI, Circles, Flutter; e.g. `ChatBinding.cs:140,167`) | 13 | Neutral: `Context.Self<T>()`, which is scheduler-routed and queues behind the current turn |
+| `this.AsReference<INeuronObserver>()` passed to `Watch`/`Unwatch` (`ChatBinding.cs:111,114,175,191`); `CreateObjectReference<INeuronObserver>` (`SignalSubscription.cs:54`) | 2 | Neutral: `Context.Self<INeuronObserver>()` for neurons, `IObserverFactory.Create(INeuronObserver)` for process-side observers. The provider turns both into Orleans references. **Spike item 2** (2.6) |
+| `OnDeactivateAsync` overrides | 10 | Neutral: `IDeactivatingNeuron.OnDeactivating` |
+| `DeactivateOnIdle` (e.g. `AgentNeuron.cs:446`, `CSharpFileNeuron.cs:84`) | 3 | Neutral: `Context.Deactivate()` |
+| `DelayDeactivation` | 3 | Neutral: `Context.KeepAlive` |
+| `RequestContext` get/remove/restore of the caller, to run as internal (`AppNeuron`, `SynapseWriter`, `SpaceNeuron`, `BrainRuntimeNeuron`, `KernelGrains`, `ConnectionBindings`) | 11 | Neutral: `ICallerContextCarrier.Suppress()` |
+| `TraceContext` over `RequestContext` plus `TraceOutgoingFilter` | ~10 mention it; 3 carry it | Neutral: `ITraceCarrier`; the provider keeps the outgoing filter |
+| Nudge provenance from the calling grain id (`NeuronCallFilter.cs:24-34`) | 1 | Neutral: `NeuronCall.Source` |
+| Grain interfaces that are not `INeuron`: public Framework ones (`ISecrets`, `IIntegration`, `IConnectionIndex`, `IConnectionInbound`, `IBrainSignalReader`), Contracts ones (`ICircleStateReader`, `ICirclePostReader`, `IBrainPrograms`, `IUiEventHandler`), Authority compute grains, secondary faces on neurons (`IGmailInbound`, `IChatReconciliation`) | ~58 (regex count 59) | Neutral: they derive from `IRuntimeEndpoint` and get an `I{X}Grain` face like neurons. Grains used only inside Authority or the provider (compute, ledger, kernel) **stay provider-only** and are not given a neutral face. PR 5 classifies each in a table |
+| `[MayInterleave(predicate)]` (`LlmNeuron.cs:13`) | 1 | Neutral: `[InterleavesWhen(nameof(predicate))]`; the provider maps it back |
+| `[ResponseTimeout]` (`IAgent.cs:13`, `ILLM.cs:12`, `IGroupChat`, `MediaContracts`, `IApp`, `ICircle`, `IDeployment` and others) | 12 (26 uses) | Neutral: `[CallTimeout("hh:mm:ss")]`. This needs the same inherited-method mapping as the concurrency markers (2.6, limit 2) |
+| `IAsyncEnumerable<T>` grain methods (`IAgent.Run`, `ILLM.GenerateStreaming`) | 2 | Allowed in contracts. Supported by the Orleans and in-memory providers, which must declare the support; a provider that cannot stream (Dapr) refuses the contract at composition |
+| `CancellationToken` parameters | many | Allowed. Orleans propagates them; in-memory passes them through; other providers must state their support |
+| `[StatelessWorker]`, `[Reentrant]` | 2 + 3 (`CreatorModelWorker.cs:19` has both) | **Stay provider-only**, as Orleans attributes on the provider's grain classes, because both are class-level |
+| `IPersistentState<T>` / `[PersistentState]` | 108 / 98 | Neutral: `INeuronState<T>` / `[State]` (2.4) |
+| `IRemindable`, `RegisterGrainTimer` | 6 | Neutral: `INeuronTimers`, `IRemindedNeuron` |
+| `IManagementGrain`, `IClusterClient`, `IGrainFactory`, placement, `ISiloBuilder` | provider code | **Stay provider-only** |
+
 ### 2.5 The providers
 
 **`DigitalBrain.Runtime.Orleans`.**
@@ -322,7 +401,9 @@ Today `Neuron.Announce` attaches signals to an `AsyncLocal`, runs the storage wr
 
 **`DigitalBrain.Runtime.InMemory`.**
 
-- One `NeuronHost` per address, holding a `SemaphoreSlim(1)` turn lock. Calls marked `[Interleaves]` or `[ReadOnlyCall]` bypass the lock; `[OneWayCall]` calls are queued and not awaited.
+- One `NeuronHost` per address, holding a turn lock. Calls marked `[Interleaves]` or `[ReadOnlyCall]` bypass the lock. `[OneWayCall]` calls are queued behind the lock and are not awaited by the caller.
+- Every call has a response timeout (default 30 s, overridable by `[CallTimeout]`), so an A→B→A cycle fails as it does in Orleans instead of hanging. `HangingWatchFacts` must behave the same on both runtimes.
+- `Context.Self<T>()` calls queue behind the current turn and never re-enter it.
 - State comes from a dictionary of `(address, stateName) → (bytes, etag)` through the same `IStateCodec`, so serialization mistakes fail in unit tests.
 - The journal is in memory and follows the same sequence rules as `ISignalJournal`.
 - Timers and reminders are driven by the injected `TimeProvider`. Under `FakeTimeProvider`, `Advance` fires ticks deterministically.
@@ -347,7 +428,7 @@ Today `Neuron.Announce` attaches signals to an `AsyncLocal`, runs the storage wr
 
   ```csharp
   [GrainInterfaceType("timer"), DefaultGrainType("timer")] public interface ITimerGrain : ITimer, INeuronGrain;
-  // INeuronGrain : INeuron, IGrainWithStringKey once PR 9 makes INeuron neutral
+  // INeuronGrain : INeuron, IGrainWithStringKey once PR 9z makes INeuron neutral
   ```
 
   Orleans generates proxies and invokers for the methods inherited from the non-grain contract interface. Callers hold `ITimer`; the provider resolves `ITimerGrain` behind `IDigitalBrain.Get<T>`.
@@ -358,6 +439,12 @@ Today `Neuron.Announce` attaches signals to an `AsyncLocal`, runs the storage wr
   - RPC method ids (`0F066472` Start, `F5ED4808` Stop).
 - **Consequence for storage and wire.** Stored bytes and wire bytes do not change, and mixed-version silos stay compatible. **No codec or envelope migration is needed** (4.3).
 - **Cost.** Serialize and deserialize times are within noise of today's. The generator took about 30 ms per provider build, and the Orleans generator leaves all 25 Contracts projects.
+
+> **SPIKE ITEM 2 (pending, coordinator extending the spike).** The spike kept `Signal`, `Trace` and `NeuronId` on Orleans-attributed core. Item 2 tests:
+> - a neutral `Signal` base in core, with derived signals in another assembly (an `IBaseCodec<Signal>` from the generator, byte-identical for polymorphic and `Signal[]` cases);
+> - an observer-typed argument: `Watch(INeuronObserver)` with neutral `INeuronObserver`, passed as a reference from a neuron (`Context.Self<INeuronObserver>()`) and from a client (`IObserverFactory`), with the provider declaring `INeuronObserverGrain : INeuronObserver, IGrainObserver`.
+>
+> PR 9's core flip (PR 9z) is blocked on item 2. PRs 5–8 are not.
 
 **Limits, carried into the PR sequence.**
 
@@ -395,8 +482,11 @@ Does not fit, or needs work:
 - `[OneWayCall]` is not native and would be emulated with pub/sub.
 - Placement is hash-based and not controllable. Today's assumption that one silo owns a brain's writer lock and journal (`BrainAffinePlacement.cs:6`) needs a per-brain owner actor or an external lease.
 - BrainLog's single-writer file log does not map onto a Dapr state store. A Dapr provider either stores state directly and loses the part-log journal, or keeps the journal behind a brain-owner actor.
-- Observers become per-brain pub/sub topics.
-- Caller context travels as actor call headers.
+- There are no object or observer references at all, so `Watch(INeuronObserver)` needs a pub/sub rewrite. That is a contract change, not a mapping.
+- There is no `IAsyncEnumerable` streaming and no `CancellationToken` propagation over actor calls.
+- The .NET actor proxy has no ambient `RequestContext`-style headers. Caller and trace must become explicit parameters or middleware.
+- Actor ids that contain `/` travel in HTTP paths and may need encoding (low confidence; verify).
+- Actor timer registration is async, while `INeuronTimers.Start` returns a synchronous `IDisposable`.
 
 Verdict: the SPI is shaped so that a Dapr provider is possible. Building one is not a W1 goal.
 
@@ -412,87 +502,110 @@ Verdict: the SPI is shaped so that a Dapr provider is possible. Building one is 
 
 **Target.**
 
-1. Brain-scoped neurons are reached only through `IDigitalBrain.Get<T>(NeuronId)`. `CurrentBrain` composes `{brain}/{id}` itself, so modules stop composing keys.
-2. Neurons outside any brain (platform, cluster, ledger, management) are reached through typed resolvers on the owning module, for example `IPlatformNeurons.Ledger()`, implemented on `INeuronResolver.ResolveSystem<T>`.
+1. Brain-scoped neurons are reached only through `IDigitalBrain.Get<T>(NeuronId)`, with a **brain-relative** id. `CurrentBrain` composes `{brain}/{id}`, so modules stop composing keys.
+2. Brain-less neurons (platform, cluster, ledger, management) are reached through typed resolvers on the owning module, for example `IPlatformNeurons.Ledger()`, implemented on `INeuronResolver.ResolveKey<T>`.
 3. `IGrainFactory`, `IClusterClient` and `GetGrain` appear only in `DigitalBrain.Runtime.Orleans`.
 
-**How the call sites move.** The work is done one PR per module cluster (PR 2a–2e), and every change is mechanical:
+**Ordering: adapter first, callers next, switch last.** Today `CurrentBrain.Get` resolves the raw key (`CurrentBrain.cs:8`), and callers pass full keys. Changing it while some modules are migrated would double-prefix the rest and route to the wrong grain. So:
+
+- **PR 2a (adapter).**
+  - Adds `IDigitalBrain.Neuron<T>(NeuronId relative)`, which composes the prefix, beside the unchanged `Get`.
+  - Adds an equivalence fact: for every neuron class in the manifest, `Neuron<T>("x")` and the raw-key path `Get<T>("{brain}/x")` resolve the same `GrainId`.
+  - Checks the sandbox edge. `DigitalBrainConnection.Get` sends `id.Name` as the key (`DigitalBrainConnection.cs:35`), so the server side must be traced and covered by a fact before the switch.
+- **PRs 2b–2e (callers).** These move call sites, one module cluster per PR, to `Neuron<T>` or to typed resolvers.
+- **PR 2f (switch).**
+  - Once no raw-key caller of `Get` remains (ratchet at zero), `Get` takes the relative semantics.
+  - `Neuron<T>` becomes an alias, and is then removed.
+  - The raw path survives only as `IDigitalBrains.Grain<T>`/`ResolveKey` for hosts and harnesses.
 
 | Call-site shape | Becomes |
 |---|---|
-| `grains.GetGrain<IFoo>($"{brain}/foo/{x}")` inside a neuron or behaviour of that brain | `brain.Get<IFoo>($"foo/{x}")` (`IDigitalBrain` injected, or `Context.Brain`) |
-| `GetGrain<IFoo>(key)` with a full key from storage or a request | `brains.Open(BrainKey.BrainOf(key)).Get<IFoo>(rest)`; `BrainKey` moves into the provider once these sites are gone |
+| `grains.GetGrain<IFoo>($"{brain}/foo/{x}")` inside a neuron or behaviour of that brain | `brain.Neuron<IFoo>($"foo/{x}")` (then `Get` after 2f) |
+| `GetGrain<IFoo>(key)` with a full key from storage or a request | `brains.Open(BrainKey.BrainOf(key)).Neuron<IFoo>(rest)`, or `ResolveKey` when the key may be brain-less |
 | `GetGrain<IPlatformThing>(0 or "singleton")` | typed resolver on the owning module |
 | test code | harness helpers (`TestBrain.Get<T>`) backed by the runtime's resolver |
 
 Key strings do not change, so there is no persisted impact. No `NeuronId` value changes either (4.1).
 
-**Rules enforced by architecture tests** (section 6):
+**Rules** (section 6):
 
-- **R-A1:** no type outside `DigitalBrain.Runtime.Orleans` depends on `Orleans.IGrainFactory`, `Orleans.IClusterClient` or `Orleans.GrainFactoryExtensions`.
-- **R-A2:** only Framework and the providers use `IDigitalBrains.Grain<T>`.
+- **R-A1, ratchet:** a source-text scan for `GetGrain<`, `GetGrain(`, `IGrainFactory` and `IClusterClient` across all `.cs` files, **including tests**. It compares against `GrainFactoryOwners.json` (`{file: count}`), using the pattern of `ConfigurationKeyFacts.cs:18-38`. A file whose count rises fails, and so does a new file. A file whose count falls must shrink the baseline. At PR 2f the baseline holds only provider and harness files.
+- **R-A2:** only Framework, the providers and the harness use `IDigitalBrains.Grain<T>`/`ResolveKey`.
 - **R-A3:** modules do not reference `BrainKey`.
-
-Until PR 2e lands, R-A1 runs against a shrinking `GrainFactoryBaseline.json`, the same pattern as `ConfigurationKeyOwners.json`. A new call site fails the build. Removing one requires deleting its baseline entry.
 
 ## 4. Storage compatibility
 
-### 4.1 What is persisted today, and what must not change
+### 4.1 What is persisted today, and what must remain byte-identical
+
+The generator makes stored bytes identical, but only for what the golden facts cover. W1's contract is that **every row below stays byte-identical or string-identical**:
 
 | Identity | Where it is persisted | Source today | Target source (same value) |
 |---|---|---|---|
-| State record key | BrainLog record key `grainId.ToString()` = `"{grainType}/{key}"` (`BrainGrainStorage.cs:12`) | `[GrainType]` plus grain key | `NeuronAddress.StorageKey` from `[NeuronType]`; the `I{X}Grain` grain type keeps the same string |
+| State record key | BrainLog record key `grainId.ToString()` = `"{grainType}/{key}"` (`BrainGrainStorage.cs:12`) | `[GrainType]` plus grain key | `NeuronAddress.StorageKey`; the `I{X}Grain` grain type keeps the same string |
+| Effective implicit grain types | as above, for neuron classes with **no** `[GrainType]`, whose name Orleans derives from the class (e.g. `ImageGeneratorNeuron`, `EmbeddingNeuron`, `SpeechRecognizerNeuron`, `SpeechSynthesizerNeuron` in `Modules/AI/.../Media/MediaNeurons.cs:45-106`) | Orleans default naming | pinned explicitly with `[NeuronType]` in PR 5, recorded in the manifest |
 | State name | BrainLog record, from `[PersistentState(name, …)]` | 98 files | `[State(name)]` |
-| Type aliases | Inside Orleans binary payloads, and as `SignalId` strings in `Synapse` | 854 `[Alias]` | `[NeuronAlias]` (generated alias registration) |
-| Field ids | Orleans binary payloads | 545 `[Id]` | `[Field]` |
-| `NeuronId` value | `Signal.Publisher` (`Signal.cs:21`), `Synapse.Publisher` (`Synapse.cs:15`), `SignalNudge.Publisher` (`SignalNudge.cs:12`), Dart `JournalSignal.publisher` | `GrainId.ToString()` (`Neuron.cs:24`) | `NeuronAddress.StorageKey`, same string |
-| BrainLog segment | `"DBLG"` magic plus a format byte (`BrainLog.cs:13-14,142,248-263`); `BrainLogFormat { Legacy = 0, Framed = 1 }` (`BrainLogModel.cs:6`) | Orleans `Serializer` for entries and snapshots (`BrainLog.cs:132,187`) | unchanged; the generator emits byte-identical codecs |
-| Blob grain state | Azure blob through `OrleansGrainStorageSerializer` (`OrleansStorageHosting.cs:74-76`) | Orleans binary | same codec through `IStateCodec` |
-| Export | `BrainExport(FormatVersion, …)` as JSON (`BrainLogModel.cs:8`, `BrainLog.cs:81`) | — | unchanged; stays the manual escape hatch |
+| State payloads | `BrainRecord.Record` bytes (`BrainLogModel.cs:11-12`) | Orleans binary | generated codecs, byte-identical |
+| Log entry envelope | `BrainEntry` (`storage.brain-entry`), with `Sequence`, `GrainId`, `StateName`, `Change`, `Record` and **`Signal[] Signals`** (`BrainLogModel.cs:14-22`) | Orleans `Serializer` (`BrainLog.cs:132`) | unchanged; it stays in Authority with its Orleans attributes until PR 9 extends the generator to it |
+| Snapshot envelope | `BrainSnapshot` (`storage.brain-snapshot`): records dictionary plus `BrainEntry[] Signals` plus `Format` (`BrainLogModel.cs:24-30`) | Orleans `Serializer` (`BrainLog.cs:187`) | as above |
+| Journalled signals | polymorphic `Signal` subtypes inside entries and snapshots; the alias string is on the wire (spike golden: `time.timer-tick`) | `[Alias]` + `[Id]` | `[NeuronAlias]` + `[Field]`, byte-identical (spike-proven for `TimerTick`; the base is spike item 2) |
+| Type aliases | inside payloads, and as `SignalId` strings in `Synapse` | 854 `[Alias]` | `[NeuronAlias]` |
+| Field ids | Orleans binary payloads | ~2,175 (`[Id(n)]` + `[property: Id(n)]`) | `[Field]` |
+| `NeuronId` / `publisher` value | `Signal.Publisher` (`Signal.cs:21`), `Synapse.Publisher` (`Synapse.cs:15`), `SignalNudge.Publisher` (`SignalNudge.cs:12`), Dart `JournalSignal.publisher`; format `"{grainType}/{key}"` | `GrainId.ToString()` (`Neuron.cs:24`) | `NeuronAddress.StorageKey`, same string |
+| Watch selection names | the CLR short type name, `signal.GetType().Name` (`Neuron.cs:96`); the proto `signal_types` accepts short or full | class names | unchanged. A class rename silently drops watchers, so the manifest records short names |
+| Segment format | `"DBLG"` magic plus a format byte (`BrainLog.cs:13-14,142,248-263`); `BrainLogFormat { Legacy = 0, Framed = 1 }` (`BrainLogModel.cs:6`); sealed with the custody key (`BrainLog.cs:134,187`) | — | **not touched by W1** |
+| Blob grain state | Azure blob through `OrleansGrainStorageSerializer` (`OrleansStorageHosting.cs:74-76`) | Orleans binary | same codec, byte-identical |
 
-Normalising `NeuronId` to brain-relative names, so that `Publisher` equals what `Get` accepts, is desirable but is a persisted-format change of its own. It is **out of scope for W1** (open question 1).
+Normalising `NeuronId` to brain-relative names is a persisted-format change of its own. It is **out of scope for W1** (open question 1).
 
 ### 4.2 Contract manifest
 
 `ContractManifest.json` is a generated baseline in `Architecture.Tests.Unit`. It records:
 
-- for every type with `[NeuronContract]` or `[GenerateSerializer]`: its full name, its alias (`[NeuronAlias]` or `[Alias]`), and its `(member, field id)` pairs;
-- every `(neuron class, grain type or NeuronType)` pair;
-- every state name.
+- for every type with `[NeuronContract]` or `[GenerateSerializer]`: its full name, its alias (`[NeuronAlias]` or `[Alias]`), and its `(member, field id)` pairs, including `[property: …]` targets;
+- for every grain or neuron class: its **effective** grain type, taken from the Orleans grain-type resolver at runtime and not from attributes alone, so implicit names (H5) are pinned;
+- every state name;
+- the short type name of every signal (Watch selection).
 
 Rules:
 
-- PR 1 captures the manifest from today's Orleans attributes.
-- Every later PR must reproduce it exactly from whichever attributes are present.
+- PR 1 captures the manifest from today's build.
+- Every later PR must reproduce it exactly.
 - Additions are allowed, as additive state already is (`AdditiveStateFacts.cs:9-23`). Renames and renumbering fail.
 
-### 4.3 Dual-read, migration and rollback: only for identity changes
+### 4.3 Dual-read, migration and rollback
 
-The spike removes the codec migration. Stored bytes do not change, so W1 has **no envelope, no codec tag and no writer flip**. The dual-read machinery is kept on file only for the two identity changes that would alter stored data. Neither is in W1 scope:
+**W1 changes no stored byte, no record key and no segment format.** There is therefore no codec migration, and the earlier "force a snapshot in the new codec" step is removed. It was not workable anyway: `BrainLog` holds opaque bytes per `(grainId, stateName)` and does not know `TState`.
 
-- **Storage keys.** A record key changes if a grain type name changes, for example when a `[GrainType]` is renamed or a generic host grain is introduced. W1 forbids this through the manifest. If it is ever needed:
-  - the reader looks up the new key and falls back to the old one;
-  - the writer writes the new key one release later;
-  - a startup migration copies records per brain and writes a marker.
-- **`NeuronId` values** (open question 1). Normalising `Publisher` to brain-relative names changes `Signal.Publisher`, `Synapse.Publisher`, `SignalNudge` and the Dart `publisher` values. If it is ever done:
-  - readers accept both forms;
-  - writers flip one release later;
-  - a startup migration rewrites `Synapse` sets per brain.
+The dual-read machinery is kept on file only for two identity changes, neither of which is in W1:
 
-The release discipline for either change follows simplification decisions 11–13:
+- **Storage-key change** (a grain type rename).
+  - The reader looks up the new key and falls back to the old one.
+  - The writer writes new keys one release later.
+  - A startup migration copies records under the new key per brain. This **is** workable, because it copies opaque bytes and needs no CLR type. It writes a per-brain marker and deletes nothing.
+- **`NeuronId` normalisation** (open question 1).
+  - Readers accept both forms, and writers flip one release later.
+  - Rewriting `Synapse` sets inside state does need the CLR type. It needs a manifest-driven `(grainType, stateName) → Type` registry, and that registry must also cover orphaned records whose neuron class is gone, which are left untouched and logged.
 
-- **Release N:** dual-read; the writer is unchanged.
-- **Release N+1:** the writer flips by configuration. A background, idempotent per-brain migration runs at startup and deletes nothing.
-- **Rollback:** N+1 → N is safe. N+1 → N-1 is unsupported, and the release notes say so.
-- **Escape hatch:** the export endpoint (`BrainLogModel.cs:8`).
+The release discipline for either change follows simplification decisions 11–13: release N dual-reads, release N+1 flips the writer by configuration, and the migration runs at startup.
 
-The BrainLog format byte (`BrainLog.cs:13-14,142,248-263`) is not touched by W1.
+**Rollback, stated honestly.**
 
-**Evidence required in W1 anyway, as guards:**
+- **An old release crashes on a newer segment format.** `DetectFormat` throws `InvalidDataException("Unknown brain log format version …")` on any format byte other than Legacy or Framed (`BrainLog.cs:262-263`). This is a hard crash, not a degraded read. W1 never writes a new format byte. A future format change must first ship a release that reads it.
+- **The export endpoint is not a complete escape hatch.** It omits the `vault`, `credential`, `registration`, `access`, `account`, `principal` and `reminders` states, every Authority-assembly type, and `ConnectionState` (`BrainLog.cs:76-80`). Mitigation for any future format change: before the writer-flip release, operators take a file-level copy of the part-log directory (an Azure Files share snapshot). Rollback restores that copy.
+- **Blob grain storage has no rollback.** Writes overwrite in place. Mitigation: enable blob versioning or soft delete on the grain-state container before any change to blob payloads. W1 does not change blob payloads, so for W1 this is accepted.
 
-- the manifest fact (4.2);
-- the golden-bytes facts (section 6);
-- an integration fact that opens fixture brain logs captured from the v0.1.0 and v0.2.0 tags with the new build and reads every record.
+### 4.4 Fixtures
+
+There is no `v0.2.0` tag (72 tags, v0.0.x and v0.1.0–v0.1.30). `c7cf32c4d` set VERSION 0.2.0, and `v0.1.0` refers to a pre-split build. So fixtures come from a **reproducible build**, not a tag:
+
+- **Source.** Master at `bdb79fc21` (VERSION 0.2.0, after #188–#190), built with the repo's pinned SDK.
+- **Producer.** A fixture tool in `DigitalBrain.Testing` composes the OS catalog in process. It writes a brain through representative scenarios (timers, apps, chat, connections, circles, the AI media neurons with implicit grain names) and seals segments with a **checked-in test seal key**, never a custody key.
+- **Coverage.**
+  - Both `Legacy` and `Framed` segment formats.
+  - At least one snapshot.
+  - Entries carrying journalled `Signal[]`.
+  - Blob grain-state payloads written through `OrleansGrainStorageSerializer`.
+- **Use.** The fixtures are checked into the integration tier. Every later PR opens them and reads every record with its CLR type. Hosted images, if the deployment workstream can identify the exact hosted builds, add fixtures from those images later; PR 1 does not wait on them.
 
 ## 5. Client, sandbox and Dart mirrors
 
@@ -500,14 +613,14 @@ The BrainLog format byte (`BrainLog.cs:13-14,142,248-263`) is not touched by W1.
   - Its wire is already JSON. `NeuronProxy : DispatchProxy` serializes arguments with `RuntimeProtocol.Json` (`DigitalBrain.Client/DigitalBrain.Client/Edge/NeuronProxy.cs:11,54,70`). `DigitalBrainConnection : IDigitalBrain` builds proxies from `NeuronId` (`DigitalBrainConnection.cs:8,35`).
   - Its only Orleans tie is the SDK reference kept because "the runtime protocol records also cross grain calls inside the silo" (`DigitalBrain.Client.csproj:13-14`).
   - Impact: the protocol records take `[NeuronContract]`/`[NeuronAlias]`/`[Field]`, the SDK reference goes, and the provider generator emits their codecs.
-  - `NeuronProxy` does not change. It already treats contracts as plain interfaces, which is existing proof that the neutral contract works for consumers.
+  - `NeuronProxy` does not change. It proves only data-argument calls: it JSON-serializes every argument (`NeuronProxy.cs:54`) and throws on any return type other than `Task` or `Task<T>` (`:64`). Observer arguments and streaming are not reachable from sandboxed scripts, today or after W1.
 - **`Client.Orleans`** moves into the provider. Its lease-renewal loop (`SignalSubscription.cs:63,93-99`) becomes internal to the Orleans `ISignalFanout`, and its `WatchStream` copy is deleted (2.4).
 - **Flutter and Dart.**
   - The shell talks HTTP/JSON and gRPC with JSON payloads. The proto names contracts by full type name and neurons by key, and states "the C# contracts are the schema" (`DigitalBrain.Authority/DigitalBrain.Authority/Neurons/neurons.proto:5-6,15-17,26-28`).
   - Journal signals carry `type` and `publisher` strings (`DigitalBrain.Modules/Google/Flutter/app/core/lib/src/signals_client.dart:3-15`), and `app/core/lib/src/node_contracts.dart` mirrors the contract records.
-  - W1 keeps contract type names, keys, signal type names and `publisher` values unchanged (4.1), so **no Dart change is required**.
+  - W1 keeps contract type names, keys, signal type names and `publisher` values unchanged (4.1), so **no Dart change is required**. The wire contract check gains an assertion that `publisher` has the format `{grainType}/{key}`, so no provider change can silently alter it.
   - The gate is the wire-level contract check (simplification decision 3) plus `app/core/test/node_contracts_test.dart`. A PR that renames a contract namespace updates the Dart mirrors in the same PR (`E:/intochat/os/CLAUDE.md:16`).
-- **MCP.** `DigitalBrain.Mcp/DigitalBrain.Mcp/Tools/NeuronTools.cs:55-62` detects Orleans exceptions by type-name prefix. It switches to a neutral `NeuronCallException` that the provider throws, wrapping the Orleans exception.
+- **MCP.** `DigitalBrain.Mcp/DigitalBrain.Mcp/Tools/NeuronTools.cs:55-62` detects Orleans exceptions by type-name prefix. It switches to a neutral `NeuronCallException` that the provider throws, wrapping the Orleans exception. The existing mapping for `TypeLoadException` and the other BCL exceptions (`NeuronTools.cs:60`) stays.
 
 ## 6. Testing standard
 
@@ -529,59 +642,84 @@ The BrainLog format byte (`BrainLog.cs:13-14,142,248-263`) is not touched by W1.
 - `Testing/DigitalBrain.Architecture.Tests.Unit/BoundaryFacts.cs:1-2`;
 - the graph loader in `ProductionArchitecture.cs:19-20`.
 
-W1 keeps ArchUnitNET and does not add NetArchTest. New facts go in `RuntimeBoundaryFacts.cs`. Package-reference rules reuse the existing csproj reader (`Repository.References`, used at `BoundaryFacts.cs:51`).
+W1 keeps ArchUnitNET and does not add NetArchTest. Its limits shape the rules:
 
-| Rule | Check |
-|---|---|
-| R-B1 core has no Orleans refs | types in `DigitalBrain` depend on no type in an `Orleans*` namespace; the csproj has no `Microsoft.Orleans.*` package |
-| R-B2 Contracts have no Orleans refs | the same check, for every assembly whose name ends in `.Contracts` |
-| R-B3 only the provider references Orleans packages | no production csproj except `DigitalBrain.Runtime.Orleans` and the allow-listed host projects (`Aspire.Server`, `Aspire.Client`, `Aspire.Hosting`, `AppHost`, `Testing`, `Testing.Aspire`) references `Microsoft.Orleans.*` |
-| R-A1 no `GetGrain` outside the provider | no dependency on `Orleans.IGrainFactory`, `Orleans.IClusterClient` or `Orleans.GrainFactoryExtensions` outside `DigitalBrain.Runtime.Orleans` (baseline until PR 2e) |
-| R-B6 one grain face per contract | every `INeuron` contract in the composition has exactly one `I{X}Grain` in the provider, whose `GrainInterfaceType`/`DefaultGrainType` equal the contract's `[NeuronAlias]`/`[DefaultNeuronType]` |
-| R-B4 manifest unchanged | `ContractManifest.json` regenerated from the attributes equals the checked-in file |
-| R-B5 Framework is neutral | `DigitalBrain.Framework` has no Orleans dependency (strict from PR 9) |
+- 0.13.4 has no freeze or baseline feature, and it reports violations per type, not per call site.
+- The graph loads production assemblies only, from `ArchitectureAssemblies.txt`, so test code is invisible to it.
+- A rule against types from an assembly that is not loaded can pass vacuously.
 
-Sample:
+So:
+
+- **Ratchets are source-text scans** with a JSON baseline, like the existing `ConfigurationKeyFacts.cs:18-38` and `TestTierFacts`. They cover test projects too.
+- **Strict type rules use ArchUnitNET**, and only against assemblies that exist when the rule lands. The Orleans abstractions assembly is loaded into the graph explicitly, so dependencies on it resolve.
+- Each rule is proven red once with a deliberate violation in its PR.
+- The repo is on Orleans **10.4.0** (`Directory.Packages.props:79-102`), and the facts are written against 10.x.
+
+| Rule | Mechanism | Lands |
+|---|---|---|
+| R-A1 no grain factory outside provider and harness | source-scan ratchet, `GrainFactoryOwners.json` `{file: count}`, includes tests | PR 1 (baseline = today), zero outside provider and harness at PR 2f |
+| R-O1 Orleans package references | csproj scan (`Repository.References`, used at `BoundaryFacts.cs:51`) with an allow-list ratchet `OrleansReferenceOwners.json`; it shrinks to `DigitalBrain.Runtime.Orleans` plus host and test projects (`Aspire.Server`, `Aspire.Client`, `Aspire.Hosting`, `AppHost`, `Testing`, `Testing.Aspire`) | PR 1 |
+| R-B1 core has no Orleans types | ArchUnitNET, Orleans assembly loaded | strict at PR 9z |
+| R-B2 Contracts have no Orleans types | ArchUnitNET, per Contracts assembly; an allow-list of not-yet-migrated projects that only shrinks | PR 5 (Time), then each PR 9 batch |
+| R-B4 manifest unchanged | regenerate and compare `ContractManifest.json` | PR 1 |
+| R-B5 Framework is neutral | ArchUnitNET | strict at PR 9z |
+| R-B6 one grain face per contract | reflection over the provider assembly: every `INeuron`/`IRuntimeEndpoint` contract has exactly one `I{X}Grain` with matching `GrainInterfaceType`/`DefaultGrainType` | PR 5, once the provider exists |
+
+Sample. These rules compile and run at PR 1: they reference only existing assemblies, the existing `Repository` helpers and the Orleans abstractions assembly, which the test project already references through `AdditiveStateFacts`.
 
 ```csharp
-using ArchUnitNET.Fluent;
+using System.Text.Json;
+using System.Text.RegularExpressions;
+using ArchUnitNET.Loader;
 using ArchUnitNET.xUnitV3;
 using static ArchUnitNET.Fluent.ArchRuleDefinition;
 
 namespace DigitalBrain.Architecture.Tests.Unit;
 
-public sealed class RuntimeBoundaryFacts
+public sealed partial class RuntimeBoundaryFacts
 {
-    private static System.Reflection.Assembly Named(string name)
-        => ProductionArchitecture.Assemblies.Single(assembly => assembly.GetName().Name == name);
+    [GeneratedRegex(@"\bGetGrain\s*[<(]|\bIGrainFactory\b|\bIClusterClient\b")]
+    private static partial Regex GrainFactoryUse();
 
-    private static readonly System.Reflection.Assembly[] Neutral = ProductionArchitecture.Assemblies
-        .Where(assembly => assembly.GetName().Name is "DigitalBrain" or "DigitalBrain.Framework"
-            || assembly.GetName().Name!.EndsWith(".Contracts", StringComparison.Ordinal))
-        .ToArray();
-
+    // R-A1: a ratchet over all source, tests included; ArchUnitNET cannot see tests or count call sites.
     [Fact]
-    public void CoreAndContractsDoNotDependOnOrleans()
-        => Types().That().ResideInAssembly(Neutral[0], Neutral[1..])
-            .Should().NotDependOnAny(Types().That().ResideInNamespaceMatching(@"^Orleans(\..*)?$"))
-            .Because("Orleans is a runtime provider (D1); core and contracts are runtime-agnostic")
-            .Check(ProductionArchitecture.Graph.Value);
+    public void GrainFactoryUseOnlyShrinks()
+    {
+        var baselinePath = Path.Combine(Repository.ProjectNamed("DigitalBrain.Architecture.Tests.Unit").Directory, "GrainFactoryOwners.json");
+        var baseline = JsonSerializer.Deserialize<Dictionary<string, int>>(File.ReadAllText(baselinePath))!;
+        var current = Repository.ProjectFiles("*.cs", _ => true)
+            .Select(path => (Key: Repository.ProjectKey(path), Count: GrainFactoryUse().Matches(File.ReadAllText(path)).Count))
+            .Where(file => file.Count > 0)
+            .ToDictionary(file => file.Key, file => file.Count, StringComparer.Ordinal);
 
-    [Fact]
-    public void OnlyTheOrleansProviderAddressesGrains()
-        => Types().That().DoNotResideInAssembly(Named("DigitalBrain.Runtime.Orleans"))
-            .Should().NotDependOnAny(Types().That().HaveFullName("Orleans.IGrainFactory")
-                .Or().HaveFullName("Orleans.IClusterClient").Or().HaveFullName("Orleans.GrainFactoryExtensions"))
-            .Because("neurons are reached through IDigitalBrain.Get<T>; the brain owns addressing")
-            .Check(ProductionArchitecture.Graph.Value);
+        var grown = current.Where(file => file.Value > baseline.GetValueOrDefault(file.Key)).Select(file => $"{file.Key}: {file.Value}").Order().ToArray();
+        Assert.True(grown.Length == 0, "New grain-factory use; reach neurons through IDigitalBrain:\n" + string.Join('\n', grown));
+
+        var shrunk = baseline.Where(file => current.GetValueOrDefault(file.Key) < file.Value).Select(file => file.Key).Order().ToArray();
+        Assert.True(shrunk.Length == 0, "Grain-factory use went down; shrink GrainFactoryOwners.json so the ratchet holds:\n" + string.Join('\n', shrunk));
+    }
+
+    // R-B1 (strict at PR 9z; until then a [Fact(Skip)] proven red once). The Orleans abstractions assembly is loaded
+    // explicitly so the dependency target exists in the graph and the rule cannot pass vacuously.
+    private static readonly ArchUnitNET.Domain.Architecture WithOrleans = new ArchLoader()
+        .LoadAssemblies([.. ProductionArchitecture.Assemblies, typeof(Orleans.IGrainFactory).Assembly]).Build();
+
+    [Fact(Skip = "Strict from PR 9z")]
+    public void CoreDoesNotDependOnOrleans()
+        => Types().That().ResideInAssembly(ProductionArchitecture.Assemblies.Single(a => a.GetName().Name == "DigitalBrain"))
+            .Should().NotDependOnAny(Types().That().ResideInAssembly(typeof(Orleans.IGrainFactory).Assembly))
+            .Because("Orleans is a runtime provider (D1)")
+            .Check(WithOrleans);
 }
 ```
 
-`ProductionArchitecture.Types` already filters out `OrleansCodeGen` namespaces (`ProductionArchitecture.cs:15-17`). Generated codecs and the `I{X}Grain` interfaces live in the provider assembly, so R-B1 and R-B2 are not triggered by generated code.
+The exact ArchUnitNET 0.13.4 overloads (`ResideInAssembly(Assembly)`, `LoadAssemblies(params Assembly[])`) are already used by `BoundaryFacts.cs` and `ProductionArchitecture.cs`. Generated codecs and the `I{X}Grain` interfaces live in the provider assembly, so R-B1 and R-B2 are not triggered by generated code.
 
 **Golden-bytes facts.** These guard the coupling between the generator and Orleans' layout (2.6, limit 4). The template is the spike's `Shared/TimerTickLayoutFacts.cs` and `Shared/Golden.cs`:
 
 - One sample per contract shape: sealed record, sealed class, polymorphic `Signal` subtype, shared-reference array, and later struct, enum and generic as the generator gains them.
+- The storage envelopes: a `BrainEntry` carrying a `Signal[]`, a `BrainSnapshot`, and a `BrainRecord`.
+- One **sealed segment** per format (`Legacy`, `Framed`), written with the checked-in test seal key, so encryption and framing are pinned too.
 - Each sample's bytes are checked in as hex, captured from today's Orleans-attributed build before that shape migrates.
 - The facts live in `Architecture.Tests.Unit` and need no silo.
 - Until PR 9 completes, the same fact file is also compiled into a baseline project that uses today's codecs, so both sides assert the same hex.
@@ -634,40 +772,44 @@ public sealed class TimerFacts
 |---|---|---|---|
 | 4 unused Orleans package versions: `BroadcastChannel`, `Dashboard.Abstractions`, `Runtime`, `TestingHost` | `E:/intochat/os/Directory.Packages.props:79,83,86,102`; no csproj references them (recon, high confidence) | Dead pins blur the "only the provider references Orleans" rule | Yes, PR 1 |
 | Duplicate `WatchStream` | the two files in 2.4; near-identical by diff | One stream owned by core; the Orleans copy disappears with `Client.Orleans` anyway | Yes, PR 1 |
-| `AsyncLocal` signal side channel | `SignalJournal.cs:24-71`, `Neuron.cs:101-126`, `BrainGrainStorage.cs:39` | Blocks a neutral state API (2.4) | Yes, PR 6 |
-| Stale `src/DigitalBrain.Platform/` directory | present in `src/`; no tracked files after the rename to Authority (recon) | Local leftovers; nothing to commit | Delete locally; note in PR 1 |
+| `AsyncLocal` signal side channel | `SignalJournal.cs:24-71`, `Neuron.cs:101-126`, `BrainGrainStorage.cs:39` | Blocks a neutral state API (2.4) | Yes, PR 6a |
+| Stale `src/DigitalBrain.Platform/` directory | present in `src/`; no tracked files after the rename to Authority (recon) | Local leftovers; nothing to commit | Not a PR item; delete locally |
 | Oversized neurons: `BrainRuntimeNeuron` (1,195 lines), `AppNeuron` (893 lines) | `wc -l` on `Modules/Microsoft/CSharp/.../Runtime/BrainRuntimeNeuron.cs` and `Modules/DigitalBrain/Apps/.../Apps/AppNeuron.cs` | Main timer and JSON-in-state users; splitting them is product work on persisted state (ledger 1.6) | **No.** PR 7 ports their timer calls only; splitting is a follow-up |
 | Near-empty projects: `Mcp.Contracts`, `ArtCraft.Contracts`, `Tools.Contracts`, `Twilio.Contracts`, `Monnet.Contracts`, `Microsoft.Aspire.Aspire.Hosting`, `ArtCraft.Aspire.Hosting` | 1–2 files each (recon section 4) | Fewer Contracts projects to de-Orleans in PR 9; simplification decision 8 already folds them | Only where PR 9 touches them; otherwise the simplification workstream owns them |
 | Thin test projects: `Modules.Tools.Tests.Unit` (1), `Aspire.Hosting.Tests.E2E` (1), `Microsoft.GitHub.Tests.Hosting` (1), `Supabase.Tests.Hosting` (2), `ArtCraft.Tests.Integration` (3) | recon section 4 | Each adds a build and a test process | **No.** The simplification workstream's taxonomy (decision 1) owns them |
-| MCP Orleans exception sniffing | `Mcp/Tools/NeuronTools.cs:55-62` | Incidental leak | Yes, PR 8 |
+| MCP Orleans exception sniffing | `Mcp/Tools/NeuronTools.cs:55-62` | Incidental leak | Yes, PR 8b |
 | Kernel `IManagementGrain` scan | `Kernel.cs:43` | Cluster-global and Orleans-only | Moved into the provider as is, not redesigned |
 
 ## 8. PR sequence
 
-Each PR is one branch in `intochat/os`, built and tested on CI. Warnings stay errors. Agents never push master or tags. The spike has resolved, so no PR waits on it any more. The one remaining unknown is the concurrency-marker mapping, which PR 4 settles before PR 5.
+Each PR is one branch in `intochat/os`, built and tested on CI. Warnings stay errors. Agents never push master or tags. Blocking: spike item 2 blocks PR 9z only. The concurrency and timeout mapping is settled in PR 4 before PR 5.
 
 | # | PR | Scope | Risk | Test evidence required | Rollback |
 |---|---|---|---|---|---|
-| 1 | Hygiene and guards | Drop the 4 unused package versions; one `WatchStream` in core; capture `ContractManifest.json` and golden bytes per shape; add R-B1..R-B3 and R-A1 as baseline facts (current violations listed, no new ones allowed); add v0.1.0/v0.2.0 brain-log fixtures and a read fact | Low | Full CI green; manifest and golden facts green; fixture fact reads both versions | Revert |
-| 2a–2e | Addressing through the brain (**hard prerequisite for PR 5**) | Move the 97 non-test files' `GetGrain` sites to `IDigitalBrain.Get<T>` or typed resolvers, one cluster per PR (a Authority; b Flutter + Circles; c Apps; d CSharp + AI + Aspire; e remaining modules, OS, tests); shrink `GrainFactoryBaseline.json` to zero outside the provider | Medium (wrong brain scope) | The module's integration facts green; baseline shrinks; review confirms no key-string changes | Revert per PR |
-| 3 | Neutral attributes in core | Add the 2.2 attribute set; `SignalId` and `CompiledTypes` read `[NeuronAlias]` first, then `[Alias]`; apply neutral attributes alongside the Orleans ones in core | Low | Manifest unchanged; `CompiledTypes` facts; integration green | Revert |
-| 4 | Runtime SPI, in-memory provider, concurrency mapping | Add the 2.3 interfaces; `DigitalBrain.Runtime.InMemory`; `Neuron` gains `Context` while still a `Grain`; **decide and prove the `[Interleaves]`/`[ReadOnlyCall]`/`[OneWayCall]` mapping** for inherited grain methods (2.6, limit 2) on a contract that has such methods | Medium | Unit facts for `Modules.Time` on the in-memory runtime; one provider fact per marker; method ids unchanged; integration green | Revert; nothing persisted |
-| 5 | Provider, generator and Time pilot | Create `DigitalBrain.Runtime.Orleans` with the generator (spike code productionised, assembly filter added); `ITimerGrain` and others as provider source; `Modules.Time.Contracts` without Orleans; R-B6. Needs PR 2e (no `GetGrain` left outside the provider) and PR 4 | Medium | Golden bytes and manifest identical for Time; Time integration green; R-B2 strict for `Time.Contracts` | Revert; Time.Contracts gets its Orleans attributes back |
-| 6 | Neutral state and publish | `INeuronState<T>`, explicit write with signals, delete the `AsyncLocal` attach; `[State]` replaces `[PersistentState]` (98 files, codemod); `ISignalJournal` keyed by `NeuronAddress` | High (persisted path) | Authority storage facts; Framework `WatchCycleFacts`, `PublishManyFacts`, `SignalDeliveryContextFacts`; fixture fact; record keys unchanged | Revert; format untouched |
-| 7 | Timers and caller context | Port the 6 timer and reminder users to `INeuronTimers`; `ICallerContextCarrier` and `INeuronCallFilter`; `NeuronCallFilter` becomes the provider adapter | Medium | Time facts, CSharp `BrainRuntimeNeuronFacts`, Flutter composer facts, Framework caller-stamping facts; unit timer facts on `FakeTimeProvider` | Revert |
-| 8 | Composition SPI | `Module.Configure(IRuntimeBuilder)`; `OrleansRuntimeBuilder`; move `BrainHosting`, placement, kernel grains, `Modules.Microsoft.Orleans` and `Client.Orleans` into the provider; neutral MCP exception | Medium (wide but mechanical) | Full CI; one green nightly AppHost E2E run; `OsCatalog` composes | Revert |
-| 9 | Contracts drop Orleans | In batches of about 5 Contracts projects: extend the generator for the batch's shapes (non-sealed bases, structs, enums, generics, `[Immutable]`), add golden samples, swap attributes, remove `Microsoft.Orleans.Sdk`, add the `I{X}Grain` lines. The last batch drops Orleans from core, and `INeuron`/`INeuronObserver` lose their grain bases. R-B1, R-B2 and R-B5 become strict | High (shape coverage, manifest drift) | Manifest and golden bytes identical after each batch; Dart contract check; full CI | Revert the batch |
-| 10 | Unit-tier adoption | Move neuron-logic facts to `*.Tests.Unit` on the in-memory runtime, one module per PR, each with its list of moved facts | Low | Same assertions pass; per-shard CI time reported | Revert per module |
-
-The earlier persisted-envelope PR (release N) and the writer-flip and migration PR (release N+1) are **removed**, because the bytes do not change.
+| 1 | Hygiene and guards | Drop the 4 unused package versions; one `WatchStream` in core; capture `ContractManifest.json` (effective grain types, short names); golden bytes per shape and envelope; ratchets R-A1 and R-O1 at today's baseline; the fixture tool and fixtures from `bdb79fc21` with the test seal key (4.4) | Low | Full CI green; each ratchet proven red once; fixture fact reads every record | Revert |
+| 2a | Addressing adapter | `IDigitalBrain.Neuron<T>(relative)`; equivalence fact over all manifest neuron classes; sandbox-edge key path traced and covered | Low | Equivalence fact; edge fact | Revert |
+| 2b–2e | Addressing callers | Move call sites to `Neuron<T>` or typed resolvers, one cluster per PR (b Authority; c Flutter + Circles + Apps; d CSharp + AI + Aspire; e remaining modules, OS, tests); R-A1 shrinks | Medium (wrong brain scope) | The module's integration facts; ratchet shrinks; review confirms no key-string changes | Revert per PR |
+| 2f | Addressing switch | `Get` becomes relative; `Neuron<T>` aliased, then removed; R-A1 at zero outside provider and harness. **Hard prerequisite for PR 5** | Medium | Full CI; equivalence fact | Revert |
+| 3 | Neutral attributes in core | 2.2 attributes; `SignalId`/`CompiledTypes` read `[NeuronAlias]` first, then `[Alias]`; neutral attributes alongside the Orleans ones in core | Low | Manifest unchanged; `CompiledTypes` facts | Revert |
+| 4 | Runtime SPI, in-memory provider, mappings | 2.3 interfaces and 2.4a equivalents; `DigitalBrain.Runtime.InMemory`; `Neuron` gains `Context` while still a `Grain`, and `Id` keeps reading `GrainId`; **prove the `[Interleaves]`/`[ReadOnlyCall]`/`[OneWayCall]`/`[CallTimeout]`/`[InterleavesWhen]` mapping on inherited grain methods** | Medium | A fact asserting `Context.Address.StorageKey == GetGrainId().ToString()` for every manifest neuron class; one provider fact per marker with method ids unchanged; Time unit facts on in-memory; `HangingWatchFacts` on both runtimes | Revert; nothing persisted |
+| 5 | Provider, generator, Time pilot | `DigitalBrain.Runtime.Orleans` with the productionised generator and assembly filter; `ITimerGrain` and others as provider source; pin implicit grain names; classify the ~58 non-neuron interfaces; R-B6; `Time.Contracts` without Orleans. Needs 2f and 4 | Medium | Golden bytes and manifest identical; Time integration green; **benchmarks reported**: call round-trip and `Save` micro-benchmarks, plus Time and Framework test durations, before and after | Revert |
+| 6a | Explicit journal write | `Write(next, signals)` behind the existing `IPersistentState`; remove the `AsyncLocal` attach; `ISignalJournal` keyed by `NeuronAddress` | High (persisted path) | Authority storage facts; `WatchCycleFacts`, `PublishManyFacts`, `SignalDeliveryContextFacts`; fixture fact; record keys unchanged | Revert |
+| 6b | `[State]` codemod | `INeuronState<T>`/`[State]` replace `IPersistentState`/`[PersistentState]` (98 files), in two or three module batches | Medium | Manifest state names unchanged; full CI | Revert per batch |
+| 7 | Timers, caller and trace | 6 timer and reminder users to `INeuronTimers`; `Suppress()` at the 11 caller sites; `ITraceCarrier`; `NeuronCall` and the provider call filter; `Self<T>`, `Deactivate` and `OnDeactivating` adopted | Medium | Time, CSharp `BrainRuntimeNeuronFacts`, Flutter composer, Framework caller-stamping and trace facts; `FakeTimeProvider` unit facts | Revert |
+| 8a | Composition SPI | `Module.Configure(IRuntimeBuilder)` with `OrleansRuntimeBuilder` inside today's assemblies | Medium (wide) | Full CI; `OsCatalog` composes | Revert |
+| 8b | Provider moves | Move `BrainHosting`, placement, kernel grains, `Modules.Microsoft.Orleans` and `Client.Orleans` into the provider; neutral MCP exception | Medium | Full CI; one green nightly AppHost E2E | Revert |
+| 9a–9n | Contracts drop Orleans | Batches of about 5 Contracts projects: extend the generator for the batch's shapes, add golden samples, swap attributes, remove `Microsoft.Orleans.Sdk`, add `I{X}Grain` lines; R-B2 allow-list shrinks | High (shape coverage) | Manifest and golden bytes identical per batch; Dart contract check; full CI | Revert the batch |
+| 9z | Core drops Orleans | `Signal`, `Trace`, `NeuronId`, `SignalId` and the storage envelopes on generated codecs; `INeuron`/`INeuronObserver` lose their grain bases; core and Framework drop Orleans packages; R-B1/R-B5 strict. **Blocked on spike item 2** | High | Golden bytes for envelopes and sealed segments; fixture fact; full CI | Revert (no batch depends on it) |
+| 10 | Unit-tier adoption | Move neuron-logic facts to `*.Tests.Unit` on the in-memory runtime, one module per PR, each with its moved-fact list | Low | Same assertions pass; per-shard CI time | Revert per module |
 
 Blocking map:
 
-- PRs 1, 2a–2e, 3 and 4 can start now, in parallel.
-- PR 5 needs all of PR 2 and PR 4.
-- PRs 6, 7 and 8 need PR 4.
-- PR 9 needs PRs 5 and 8.
-- PR 10 can follow PR 4, one module at a time.
+- PRs 1, 2a, 3 and 4 can start now.
+- PRs 2b–2e follow 2a, and 2f follows them.
+- PR 5 needs 2f and 4.
+- PRs 6a, 7 and 8a need 4. PR 6b needs 6a, and 8b needs 8a.
+- PRs 9a–9n need 5 and 8b. PR 9z needs all of 9a–9n and spike item 2.
+- PR 10 can follow 4, one module at a time.
 
 ## 9. Risks and open questions
 
@@ -675,19 +817,20 @@ Blocking map:
 
 - **Concurrency-marker mapping (2.6, limit 2).** If neither `[MayInterleave]` nor attribute discovery on the grain class keeps per-method semantics with unchanged method ids, interleaving contracts need a different grain-face shape. Mitigation: PR 4 settles it before PR 5. The fallback is the spike's approach C for the affected contracts only.
 - **Generator shape coverage and Orleans layout coupling (2.6, limits 1 and 4).** Mitigation: golden-bytes facts per shape, extended before each PR 9 batch and rerun on every Orleans upgrade.
-- **Manifest drift during the roughly 460-file attribute rewrite.** Mitigation: the manifest fact gates every PR from PR 1, and the rewrite is a codemod, not hand-edited.
+- **Manifest drift during the roughly 460-file attribute rewrite (about 2,175 field ids).** Mitigation: the manifest fact gates every PR from PR 1, and the rewrite is a codemod that handles `[property: Id(n)]` targets.
+- **Spike item 2 fails** (neutral `Signal` base or observer argument). Then `Signal`, `Trace`, `NeuronId` and `INeuronObserver` keep Orleans attributes in core. D1 would be met only for module Contracts, and PR 9z would not land; the owner would decide.
 - **Scheduling semantics change.** Interleaving that moves into `MayInterleave` (B) or generated attributes (A) could reintroduce the A→B→A deadlock. Mitigation: AI `InterleavingFacts` and CSharp `HangingWatchFacts` stay green on the Orleans provider, and the in-memory provider honours the same flags.
 - **The in-memory runtime gives false confidence.** It does not model placement, reactivation or storage failure. Mitigation: those stay integration facts by rule (section 6).
-- **Wide mechanical PRs (3, 8, 9) conflict with W4, W5 and the simplification workstream.** Mitigation: short merge windows announced in the programme ledger.
+- **Wide PRs (2b–2e, 6b, 8a/8b, 9a–9n) conflict with W4, W5 and the simplification workstream.** Mitigation: short merge windows announced in the programme ledger.
 - **Build time.** One generator in the composing host (A) instead of about 75 SDK generator runs should help, but this is unmeasured. CI must report it; the plan must not claim it.
 
 **Open questions.**
 
 1. Normalise `NeuronId` to brain-relative names, so that `Signal.Publisher` equals what `Get` accepts? This would be a persisted change to `Synapse`, `Signal` and the Dart `publisher` values. Recommendation: a later, separate proposal with dual-read.
-2. Are the `I{X}Grain` one-liners hand-written in the provider or written by a pre-compile MSBuild step? The answer also decides how third-party module packages get their grain faces.
+2. Are the `I{X}Grain` one-liners and codecs produced per host or in per-module provider shim packages, and are they hand-written or written by a pre-compile step? Per-host generation regenerates every module's codecs in every host. **Decide before PR 5.**
 3. Should the SPI live in core or in a sibling `DigitalBrain.Runtime.Abstractions`? Recommendation: core, namespace `DigitalBrain.Runtime`, so a contract needs one reference only.
-4. `ReadOnly` has no Dapr equivalent. Should it stay a contract attribute or become a provider hint?
-5. Is the `IManagementGrain` scan (`Kernel.cs:43`) still needed once instance registration is explicit (PR 6)?
+4. `ReadOnlyCall` has no Dapr equivalent. Should it stay a contract attribute or become a provider hint?
+5. Is the `IManagementGrain` scan (`Kernel.cs:43`) still needed once instance registration is explicit (PR 6a)?
 6. Do platform-repo consumers (`IntoChat.Distribution.Tests` through `DigitalBrain.Testing`) need changes? None are expected, because they compose through the harness.
 
 ## Sources
