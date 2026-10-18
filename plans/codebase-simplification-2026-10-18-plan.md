@@ -380,6 +380,12 @@ Fold list and targets (reference the spec's table; `Aspire.Testing` is **kept**:
 
 ---
 
+## Execution notes (2026-10-18)
+
+- Decision 2's "`FakeModelServer` becomes scriptable per brain" was not implemented: `ChatModelServer` (AI tests) is already keyed per fact, and a per-brain router for `FakeModelServer` is a follow-up; this is why most facts in the heavy suites keep their own host.
+- The framed-log writer stays `Legacy` in the shipped OS configuration until the release after v0.1.0 (decision 13); the AppHost development configuration writes `Framed`.
+- Do not tag an os release until `intochat/platform#6` (Authority rename + trusted publisher/app re-add) is merged.
+
 ## Order and gating
 
 1. PR 1b (log versioning) and PR 1a (nudge contract) in parallel; PR 1c after both.
