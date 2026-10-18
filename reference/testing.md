@@ -51,7 +51,18 @@ public sealed class ClockFacts(TimeHost host)
 - The in-process target retries start-up with a fresh port pair (up to three attempts) when a port is already taken.
 - Hosts with their own collaborators (`FakeModelServer`, `TokenEndpointStub`) start them in `InitializeAsync` before the base call and stop them after the base `DisposeAsync`.
 
-Consumer documentation for the four packages is in their READMEs: `DigitalBrain.Testing`, `DigitalBrain.Testing.Aspire`, `DigitalBrain.Testing.Playwright` and `DigitalBrain.Aspire.Testing`. They are published to `https://nuget.pkg.github.com/intochat/index.json`. Until `os` is public, restoring needs a token with `read:packages`.
+## Consuming the packages
+
+The four testing packages are published to the GitHub Packages feed `https://nuget.pkg.github.com/intochat/index.json`:
+
+- `DigitalBrain.Testing`: the in-process `TestBrain`, one host per assembly (`BrainHostFixture`), probes and fakes
+- `DigitalBrain.Testing.Aspire`: `TestBrain` on an Aspire AppHost (`AspireTarget<TAppHost>`)
+- `DigitalBrain.Testing.Playwright`: Playwright browser sessions against the Aspire target
+- `DigitalBrain.Aspire.Testing`: Aspire application-model checks without running anything
+
+Until `os` is public, restoring from the feed needs a GitHub token with the `read:packages` scope. The `DigitalBrain.Testing` README shows a `nuget.config` that reads the token from an environment variable.
+
+Consumer documentation for the four packages is in their READMEs: `DigitalBrain.Testing`, `DigitalBrain.Testing.Aspire`, `DigitalBrain.Testing.Playwright` and `DigitalBrain.Aspire.Testing`.
 
 ## Nightly workflow
 
@@ -65,15 +76,15 @@ Consumer documentation for the four packages is in their READMEs: `DigitalBrain.
 
 `.github/workflows/ci.yml` builds once with `-p:DigitalBrainNightly=false`, archives the test modules per shard, then runs the shards in parallel. Shard membership lives in `.github/test-shards.json`.
 
-| Shard | Assemblies | Sum of assembly durations | Slowest assembly |
-| --- | --- | --- | --- |
-| `unit` | 8 named plus every `*.Tests.Hosting` | 1:45 | Architecture.Tests.Unit 1:15 |
-| `integration-a` | 7 | 3:27 | Modules.Microsoft.CSharp.Tests.Integration 2:38 |
-| `integration-b` | 9 | 3:11 | Modules.Apps.Tests.Integration 2:04 |
-| `integration-c` | 11 | 4:49 | Modules.AI.Tests.Integration 1:59 |
-| `integration-d` | 3 | 2:37 | Modules.Flutter.Tests.Integration 1:32 |
+| Shard | Assemblies (current `test-shards.json`) | Wall time, run 39097999099 | Summed assembly durations, run 39091514026 (contention-bound; wall time per shard is lower) | Slowest assembly |
+| --- | --- | --- | --- | --- |
+| `unit` | Architecture, Aspire.Hosting, Client, Deployment, Modules.Microsoft.Playwright, Modules.Microsoft.Roslyn, Modules.Qdrant and Modules.Tools `.Tests.Unit`, plus every `*.Tests.Hosting` | 2:21 | 1:45 | `DigitalBrain.Architecture.Tests.Unit` 1:15 |
+| `integration-a` | 7, including `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration` and `DigitalBrain.Framework.Tests.Integration` | 3:04 | 3:27 | `DigitalBrain.Modules.Microsoft.CSharp.Tests.Integration` 2:38 |
+| `integration-b` | 9, including `DigitalBrain.Authority.Tests.Integration`, `DigitalBrain.Modules.Apps.Tests.Integration` and `DigitalBrain.OS.Tests.Integration` | 2:09 | 3:11 (without Authority) | `DigitalBrain.Modules.Apps.Tests.Integration` 2:04 |
+| `integration-c` | 11, including `DigitalBrain.Modules.AI.Tests.Integration` and `DigitalBrain.OS.Tests.Unit` | 2:15 | 4:49 | `DigitalBrain.Modules.AI.Tests.Integration` 1:59 |
+| `integration-d` | `DigitalBrain.Modules.Flutter.Tests.Integration`, `DigitalBrain.Testing.Tests.Integration`, `DigitalBrain.Modules.Circles.Tests.Integration` | 1:22 | 2:37 | `DigitalBrain.Modules.Flutter.Tests.Integration` 1:32 |
 
-Durations come from run 39091514026. The shard lists come from the current `test-shards.json`.
+The other jobs in run 39097999099 took 6:27 (build) and 2:03 (format). `DigitalBrain.Authority.Tests.Integration` did not exist yet in run 39091514026, so it has no summed duration.
 
 ### Measured before and after
 
