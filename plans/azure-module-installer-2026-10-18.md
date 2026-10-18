@@ -1,6 +1,6 @@
 # ADR A3′: an Azure module installs and runs the cloud; Pulumi and the DeploymentKit are retired
 
-Status: proposed 2026-10-18, supersedes ADR A3 in `azure-environments-2026-10-18.md`. Owner decision pending (G0′).
+Status: accepted 2026-10-18 (owner decision G0′), supersedes ADR A3 in `azure-environments-2026-10-18.md`.
 
 ## Context
 
