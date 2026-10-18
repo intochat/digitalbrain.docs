@@ -1,520 +1,620 @@
 # Azure test and prod environments for IntoChat (W5 design)
 
-**Goal:** Two reproducible Azure environments, `test` and `prod`, in `polandcentral`. Each runs the OS Orleans cluster (platform's distribution image), os-ui, the C# sandbox, platform API and Jobs, and the portal, with durable OS storage, Key Vault plus managed identity, and GitHub-gated deploys. `test` is created after the owner reviews this document. `prod` is created later, behind a separate approval.
+**Goal:** Two reproducible Azure environments, `test` and `prod`, in `polandcentral`. Each runs the OS Orleans silo (platform's distribution image), os-ui, the C# sandbox, platform API, Jobs and Bot, and the portal. Each has durable OS storage with single-writer guarantees, Key Vault plus managed identity, and GitHub-gated deploys. `test` is created after the owner reviews this document **and re-approves its cost** (§7). `prod` is created later, behind a separate approval.
 
-**Status:** design only. Nothing in Azure was created or changed. Only read-only `az` calls were used, in the W5 inventory (`clients/intochat/projects/briefs/clean-architecture/w5-azure-inventory.md` and `azure-inventory/*.json` in agentic-os). No `pulumi preview` or `pulumi up` was run.
+**Status:** design only, revision 2 (2026-10-18). Nothing in Azure was created or changed. Only read-only `az` was used: the W5 inventory (`clients/intochat/projects/briefs/clean-architecture/w5-azure-inventory.md`, `azure-inventory/*.json` in agentic-os) and one blob listing attempt, which was refused for lack of a data-plane role (§3.5). No `pulumi preview` or `pulumi up` was run.
 
-**Builds on:** `plans/deploy-os-and-platform-2026-10-17.md`. That plan covers D1 to D5, operator steps O1 to O6, and platform PRs #1 to #5. This document supersedes its single `production` stack and its TripRadar names. Release-driven delivery (D3 to D5) is unchanged.
+**Builds on:** `plans/deploy-os-and-platform-2026-10-17.md` (D1 to D5, O1 to O6, platform PRs #1 to #5). This document supersedes its single `production` stack and its TripRadar names. Release-driven delivery (D3 to D5) is unchanged.
 
 **Owner decisions (2026-10-18):**
 - Region `polandcentral`.
-- `test` is approved at about $60 to $120 per month. `prod` comes later and needs its own approval.
+- `test` was approved at about $60 to $120 per month. **The honest estimate is above that (§7). Re-approval is needed, or one of the two lean options must be chosen.**
+- `prod` comes later and needs its own approval.
 - Platform needs Postgres and Event Hubs.
 - Retire `ca-digitalbrain-kernel` after `test` is live.
-- Move `sv` and `LeedGenerator` to another subscription (this document prepares the commands only).
-- The custom domain is configurable and is not set yet.
+- Move `sv` and `LeedGenerator` to another subscription (commands only).
+- The custom domain is configurable and not set yet.
 
-All prices are **estimates** from public pay-as-you-go list prices in USD, with no reservations. Check them in the Azure pricing calculator before approving.
+All prices are **estimates** from public pay-as-you-go list prices in USD. Check them in the Azure pricing calculator for polandcentral before approving.
+
+### Revision 2: review findings and where this document disagrees
+
+The independent review (`clean-architecture/w5-design-review.md`) found the following. Each finding was checked against the code and Microsoft Learn.
+
+| Finding | Resolution |
+| --- | --- |
+| C1 BrainLog lock vs Single-revision overlap | **Accepted, with a different mechanism.** The review offers "stop then start" deploys as one option. This document rejects that option as insufficient: Learn ("Set scaling rules", scale definition) states that "during platform upgrades or maintenance, you might temporarily see more replicas than expected … pre-warming new replicas". An overlap can therefore happen without any deploy, and a deploy strategy alone cannot guarantee one writer. Fix: Blob-lease ownership with fencing (os PR S5, §3.4), plus a lock spike gate (G2-L) |
+| C1 "new revision never ready" | **Partly disagree.** Claims are already lazy. `BrainLogs` does not claim in its constructor (`BrainLogs.cs:16-23`). It claims per brain on first use, and a refused claim is not cached, so a later call retries (`:25-50`). `CheckStorageAsync` runs only in hosted mode (`HostedRecoveryHost.cs:40`, `HostedRuntimeEndpoints.cs:77`), which this design does not enable. Startup therefore does not deadlock. The real risks are `BrainNotOwnedException` during overlap, or two writers if `flock` is not enforced across CIFS clients. S5 resolves both |
+| C1 "never form one cluster" contradiction | **Accepted.** The text is removed. Old and new revisions share the ClusterId and do join one cluster during overlap, and that is desirable (§2) |
+| C2 Event Hubs Basic has no Kafka | **Accepted**, verified: `Confluent.Kafka` (`Directory.Packages.props:243`), SASL `Plain` (`ContainerAppsService.cs:391`), RootManageSharedAccessKey (`EventHubsService.cs:89-95`), custom group `app-consumer-group` (`:88`). Standard is used in both environments. Auth decision in ADR A5 |
+| C3 cost understated | **Accepted.** Recomputed at active rates (§7). Test is about $160-195, above the approved range. Two lean options are given |
+| H1 two DeploymentKits | **Accepted.** os uses the external package `DeploymentKit` 1.0.0-preview.3 (`os/Directory.Packages.props:54`, `DigitalBrain.Deployment.csproj:8`). Platform uses its own `TripRadar.DeploymentKit` (`IntoChat.DeploymentKit.csproj:9`). S2 is rescoped (ADR A3) |
+| H2 port 11111 mapping | **Accepted.** Only 30000 is mapped. Multi-silo is stated as unproven |
+| H3 prod autoscale | **Accepted.** Prod is 1 silo by default, with no scale rule. Scaling is listed under "after W1" |
+| H4 Bot, MiniApp, WebUI | **Accepted.** Bot is in scope. WebUI is the portal. MiniApp is out of scope (§2) |
+| M1-M9, citation table | Applied in place. M2 could not be verified: the reviewer's identity lacks a Blob data-plane role. It is now operator step O9a and a precondition of O9 |
+| Jobs "consumes Kafka, check" (C3) | **Checked:** Jobs does not consume Kafka. Only `IntoChat.Bot` does (`IntoChat.Bot/Program.cs:24`, `Notifications/ScheduledQueryConsumer.cs`). Jobs is a Hangfire server (W4 map, `w4-platform-flow-map.md:48`) that polls Postgres, so it stays at min 1 and bills at the active rate |
 
 ---
 
 ## 1. Current state and what gets retired
 
-Subscription `2a985480-6bb9-44ff-959d-edd5efe2cdb2`, tenant `16ea5f3c-…`. A second, phantom subscription `b0c622ab-…` returns `SubscriptionNotFound` (inventory §1).
+Subscription `2a985480-6bb9-44ff-959d-edd5efe2cdb2`, tenant `16ea5f3c-…`. A phantom second subscription `b0c622ab-…` returns `SubscriptionNotFound` (inventory §1).
 
 | Resource | What it is | Fate |
 | --- | --- | --- |
-| `ca-digitalbrain-kernel` (RG `intochat-rg`, polandcentral) | The only running IntoChat compute. Pre-split image `docker.io/vhorbachov/digitalbrain-kernel:v0.1.30`, 0.5 vCPU / 1 GiB, min=max=1. Orleans on Azure Table + Blob through one shared-key secret `storage-conn` | **Retire** once `test` passes the smoke tests (gate G3) |
+| `ca-digitalbrain-kernel` (RG `intochat-rg`. **The RG metadata is in westeurope; the resources are in polandcentral**) | The only running IntoChat compute. Image `docker.io/vhorbachov/digitalbrain-kernel:v0.1.30`, 0.5 vCPU / 1 GiB, min=max=1. Orleans on Azure Table + Blob through a shared-key `storage-conn` | **Retire** after gate G3 |
 | `cae-digitalbrain-dev` | Consumption ACA environment without a VNet | Retire with the app |
-| `stdbraindeve2c940` | Orleans tables `OrleansSiloInstances`, `OrleansReminders`. Containers `grainstate`, `state`, `digitalbrain-v2-journal`, `digitalbrain-v2-state` | Export (O9), keep read-only for 30 days, then delete |
-| `intochat-ui-webapp` (SWA Free, eastus2) | The old UI. os-ui replaces it (deploy plan D1) | Retire |
-| `id-digitalbrain-deploy` | Deploy identity for the deleted os `deploy.yml` | Retire (deploy plan O2) |
+| `stdbraindeve2c940` | Tables `OrleansSiloInstances`, `OrleansReminders`. Containers `grainstate`, `state`, `digitalbrain-v2-journal`, `digitalbrain-v2-state` | Count and export (O9a, O9), keep 30 days, then delete |
+| `intochat-ui-webapp` (SWA Free, eastus2) | Old UI, replaced by os-ui (deploy plan D1) | Retire |
+| `id-digitalbrain-deploy` | Deploy identity of the deleted os `deploy.yml` | Retire (deploy plan O2) |
 | `workspace-intochatrgBKe4` | Log Analytics for the old environment | Retire with the RG |
-| `LeedGenerator` RG (Postgres B1ms, about $28) and `sv` RG (SWA Standard, $9) | Not IntoChat | **Move** to another subscription (O7) |
+| `LeedGenerator` RG (polandcentral; its Postgres `leadpostresserver` is in **northeurope**, about $28) and `sv` RG (SWA Standard, $9) | Not IntoChat | **Move** (O7). Resources keep their location |
 
-Pulumi in platform has never been deployed. It is still TripRadar-branded:
+Pulumi in platform has never been deployed and is TripRadar-branded:
 - Project `tripradar-infrastructure` (`src/IntoChat.Infrastructure/Pulumi.yaml:1`).
-- Config namespace `tripradar` (`Constants/TripRadarServerConstants.cs:17`).
-- Hardcoded dev domain `api-dev.tripradar.io` (`:6-7`).
-- Default region `westeurope` (`:46`) and default environment `production` (`:45`).
-- Branching on the `environment` string in `Program.cs:22-47`.
-- Stacks `development` (`Pulumi.development.yaml:1-3`) and `production` (`Pulumi.production.yaml:1-15`, TripRadar domains at `:8-11`).
-- `deploy-prod.yml` runs on every push to master (`.github/workflows/deploy-prod.yml:3-5`), with `PULUMI_STACK` defaulting to `production` (`:22`) and no `environment:`.
+- Namespace `tripradar` (`Constants/TripRadarServerConstants.cs:17`).
+- Hardcoded `api-dev.tripradar.io` (`:6-7`).
+- Defaults `production` and `westeurope` (`:45-46`).
+- An environment string switch in `Program.cs:22-47`.
+- Stacks `development` and `production` (`Pulumi.development.yaml:1-3`, `Pulumi.production.yaml:1-15`).
+- Event Hubs `Basic` in both builders (`TripRadarDeploymentConfiguration.cs:67,234`).
+- ACR admin user on (`DeploymentKit/Services/ContainerRegistryService.cs:55`).
+- `deploy-prod.yml` runs on every push to `master` **or `main`** (`.github/workflows/deploy-prod.yml:3-8`), with `PULUMI_STACK` defaulting to `production` (`:22`) and no `environment:`.
 
-The os repo already contains a Pulumi library, `src/DigitalBrain.Deployment`, that deploys the runtime correctly for this target:
-- A workload-profile ACA environment on a delegated subnet (`DigitalBrainDeployment.cs:50-68`).
-- A user-assigned runtime identity (`:44-49`).
+The os repo has its own Pulumi library, `src/DigitalBrain.Deployment`. It provides:
+- A runtime MI (`DigitalBrainDeployment.cs:44-49`).
+- A workload-profile environment on a delegated subnet (`:50-68`).
 - Key Vault-referenced secrets (`:116-125`).
 - RBAC for Blob, Table, Key Vault and AcrPull (`:180-187`).
 - A stable `Orleans__ClusterId`/`ServiceId` (`:88-89`).
-- Silo and gateway ports 11111/30000 (`:168-169`).
-- min=max=1 (`:148-149`).
+- Manifest binding values for the silo and gateway ports (`:168-169`). These are binding values, not ACA ports.
 
-Platform PR #5 (`deploy/task-8-distribution-app`) instead adds its own distribution app to `ContainerAppsService.cs` (`:436`, `:452-502`) without Orleans storage. **This design makes PR #5 reuse the os library's shape.** It does not keep a second, divergent runtime definition (ADR A3).
+It sits on top of the **external** `DeploymentKit` package, whose `DeploymentKitFoundation.DeployAsync` creates its own RG, VNet, Key Vault, ACR and storage (`:41`, `:70-77`).
+
+Platform PR #5 (branch `deploy/task-8-distribution-app`) adds a separate distribution app inside platform's `ContainerAppsService.cs` (`:436` scale block, `:452-502` os-ui app, line numbers on that branch only) without Orleans storage. ADR A3 decides between the two.
 
 ---
 
 ## 2. Target topology
 
-### ADR A1. Compute: Azure Container Apps, workload-profile environment (Consumption profile) on a VNet
+### ADR A1. Compute: Azure Container Apps, workload-profile environment (Consumption profile only) on a VNet
 
-ACA keeps the cost of `test` within the approved budget, and Azure Table membership removes AKS's main advantage (Kubernetes hosting for Orleans). A workload-profile environment is needed for VNet integration, extra TCP ports and session pools. It runs only the free `Consumption` profile, as the os library already does (`DigitalBrainDeployment.cs:66`). A Dedicated profile would add about $100 or more per month and is not used.
+A workload-profile environment is required for VNet integration, extra TCP ports and custom-container session pools. Learn confirms that custom container pools "require a workload profiles-enabled environment". Only the free Consumption profile is used, and a /23 subnet is enough (the minimum is /27). A Dedicated profile would add about $100 or more per month.
 
 Rejected:
-- **AKS.** Always-on nodes plus a load balancer cost 2 to 4 times as much at this scale, and add work to operate.
+- **AKS.** 2 to 4 times the cost, and it has to be operated. It is revisited only if HA with more than one silo becomes mandatory and the G4 spike fails (§10).
 - **The existing `cae-digitalbrain-dev`.** It has no VNet.
+
+### ADR A1b. One OS silo per environment until W1 delivers brain-affinity placement
+
+- Prod defaults to **min=max=1**, with no scale rule.
+- Two silos on ACA are unproven (no Learn page documents replica-to-replica TCP; the Orleans-on-ACA tutorial uses a single instance), and the BrainLog single-writer model favours one silo per brain anyway.
+- G4 (§3.4) is a spike that **may fail**. Prod availability therefore rests on one replica plus fast restart, not on a cluster.
+- "After W1": min 2, an HTTP/CPU scale rule, and brain-affinity placement.
 
 ### Per-environment topology
 
 ```mermaid
 flowchart TB
-  subgraph RG["rg-intochat-<env> (polandcentral, tags: app=intochat env=<env> owner=vlad managed-by=pulumi)"]
-    subgraph VNET["vnet-intochat-<env> 10.20.0.0/16 (test) / 10.30.0.0/16 (prod)"]
-      subgraph SNAPPS["snet-apps /23 delegated Microsoft.App/environments"]
+  subgraph RG["rg-intochat-<env> (polandcentral; tags app=intochat env=<env> owner=vlad managed-by=pulumi)"]
+    subgraph VNET["vnet-intochat-<env> 10.20.0.0/16 test / 10.30.0.0/16 prod"]
+      subgraph SNAPPS["snet-apps /23 delegated Microsoft.App/environments (NSG allows 445 to storage)"]
         subgraph CAE["cae-intochat-<env> (workload profiles: Consumption only)"]
-          OS["ca-intochat-<env>-os<br/>distribution image (OS silo + API)<br/>Single revision mode<br/>ingress external :8080 http<br/>additional TCP 11111 silo, 30000 gateway (internal)<br/>test min=max=1, prod min=2 max=4"]
-          UI["ca-intochat-<env>-os-ui<br/>ghcr.io/intochat/os-ui:VERSION<br/>external :80, min 0 test / 1 prod"]
-          API["ca-intochat-<env>-api<br/>external :8080, min 0 test / 1 prod"]
-          JOBS["ca-intochat-<env>-jobs<br/>internal ingress, min 1"]
-          SBX["sessionpool-intochat-<env>-sandbox<br/>ghcr.io/intochat/os-sandbox:VERSION<br/>scale to zero"]
+          OS["ca-intochat-<env>-os<br/>distribution image (OS silo + API)<br/>Single revision mode, min=max=1, no scale rule<br/>ingress external :8080<br/>additional TCP 30000 gateway (internal)<br/>Azure Files /data/brain/v1 + Blob lease ownership"]
+          UI["ca-intochat-<env>-os-ui<br/>os-ui:VERSION, external :80"]
+          API["ca-intochat-<env>-api<br/>external :8080, Kafka producer"]
+          JOBS["ca-intochat-<env>-jobs<br/>Hangfire, internal, min 1"]
+          BOT["ca-intochat-<env>-bot<br/>Telegram webhook + Kafka consumer, min 1"]
+          SBX["sessionpool-intochat-<env>-sandbox<br/>os-sandbox:VERSION, scale to zero"]
         end
       end
       SNPG["snet-postgres /24 delegated Flexible Server"]
-      SNPE["snet-pe /24 (prod only, optional private endpoints)"]
     end
-    PG[("psql-intochat-<env><br/>Flexible Server B1ms test / B2s prod<br/>Entra auth, VNet-integrated")]
-    EH["evhns-intochat-<env><br/>Event Hubs Basic test / Standard prod"]
-    ST[("stintochat<env><suffix><br/>StorageV2 LRS test / ZRS prod<br/>Tables: OrleansSiloInstances, OrleansReminders<br/>Blob: grainstate, portal $web<br/>Files: brainlog (SMB)")]
-    KV["kv-intochat-<env><br/>Standard, RBAC mode"]
-    MIR["id-intochat-<env>-runtime<br/>(OS, os-ui)"]
-    MIP["id-intochat-<env>-platform<br/>(api, jobs)"]
-    LAW["log-intochat-<env> + appi-intochat-<env><br/>daily cap 1 GB test"]
+    PG[("psql-intochat-<env><br/>B1ms test / B2s prod, Entra auth")]
+    EH["evhns-intochat-<env><br/>Event Hubs Standard 1 TU, Kafka endpoint<br/>SAS rule app-kafka (Send+Listen), not Root"]
+    ST[("stintochat<env><4><br/>LRS test / ZRS prod<br/>Tables OrleansSiloInstances, OrleansReminders<br/>Blob grainstate-v1, brainlease-v1, $web<br/>Files brainlog-v1 (SMB)")]
+    KV["kv-intochat-<env>-<4><br/>RBAC, soft-delete 90d, purge protection (both envs)"]
+    MIR["id-intochat-<env>-runtime"]
+    MIP["id-intochat-<env>-platform"]
+    LAW["log-/appi-intochat-<env><br/>daily cap 0.5 GB test / 5 GB prod"]
   end
-  ACR["acrintochat (Basic, shared, rg-intochat-shared)"]
-  GHCR["ghcr.io/intochat/os-ui, os-sandbox"]
-  FD["afd-intochat-prod (optional, prod only)"]
+  ACR["acrintochat (Basic, admin user off, rg-intochat-shared)"]
+  CI["Entra app gh-intochat-platform-<env> (OIDC)"]
   QD["Qdrant Cloud (external)"]
 
   UI -->|config.json kernel URL| OS
   API --> OS
-  JOBS --> PG
+  API -->|Kafka SASL PLAIN| EH
+  BOT -->|Kafka SASL PLAIN| EH
   API --> PG
-  API --> EH
-  JOBS --> EH
-  OS -->|MI: Table+Blob Data Contributor| ST
-  OS -->|Azure Files mount /data/brain| ST
+  JOBS --> PG
+  BOT --> PG
+  OS -->|MI Table/Blob Data Contributor| ST
   OS --> SBX
   OS --> QD
-  MIR -->|Key Vault Secrets User| KV
-  MIP -->|Key Vault Secrets User| KV
-  MIR -->|AcrPull| ACR
-  MIP -->|AcrPull| ACR
-  OS -.->|registry PAT from KV until os is public| GHCR
+  MIR & MIP -->|Key Vault Secrets User, AcrPull| KV
+  MIR & MIP --> ACR
+  CI -->|Blob Data Contributor on $web| ST
   CAE --> LAW
-  FD -.-> UI
-  FD -.-> API
 ```
 
 ### OS silo app (`ca-intochat-<env>-os`)
 
-- **Revision mode `Single`.** A new revision replaces the old one, so two OS versions never form one cluster. Orleans membership tolerates the short overlap during the swap, because both versions use the same ClusterId only while one is draining. The 2-replica test in §3.4 verifies this.
-- **Ports.** HTTP ingress on 8080 (`RuntimeHttpPort`, used at `DigitalBrainDeployment.cs:141`). TCP 11111 (silo) and 30000 (gateway) are declared as internal `additionalPortMappings`, so `DigitalBrain.Mcp` and future clients can reach the gateway. Silo-to-silo traffic uses the replica IPs inside `snet-apps`.
-- **Advertised IP.** Leave `Orleans__Endpoints__AdvertisedIPAddress` unset in Azure. Orleans then picks the replica's subnet IP. The `127.0.0.1` override exists only for local executables (`DigitalBrainHostingExtensions.cs:89-93`).
-- **Sizing.** Test: 1 vCPU / 2 GiB, min=max=1. Prod: 1 vCPU / 2 GiB, min 2, max 4. The os library's 2 vCPU / 4 GiB default (`DigitalBrainDeployment.cs:147`) becomes a parameter.
-- **Scaling rule (prod only).** HTTP concurrency 50 per replica plus CPU above 70%. Scale-in is limited to one replica per 10 minutes (`cooldownPeriod 600`), so grain deactivation is not storm-driven. Test has no scaling rule.
-- **Health.** Liveness and readiness probes on `/health`. Startup probe with `failureThreshold 30` and `period 10s`, to allow silo join and BrainLog open.
+**Revision mode `Single`.** Learn ("Update and deploy changes", zero downtime) states that the old revision is deactivated only after the new one is ready. Overlap is guaranteed, not incidental.
 
-### Other apps
+During the overlap, both revisions share `ClusterId=intochat-<env>` and **join one Orleans cluster**:
+- If silo-to-silo connectivity works, a brain grain already active on the old silo keeps receiving calls there. When the old silo shuts down gracefully, its brains deactivate and release ownership, and the next call activates them on the new silo.
+- If connectivity does not work, the two silos are partitioned, and both could activate the same brain.
+- Correctness therefore never depends on the cluster. It depends on **lease ownership with fencing (S5, §3.4)**. A silo that cannot acquire a brain's lease returns a retryable error for that brain and never writes.
 
-| App | Image | Ingress | Min/max test | Min/max prod |
-| --- | --- | --- | --- | --- |
-| os-ui | `ghcr.io/intochat/os-ui:<DigitalBrainVersion>` (deploy plan D4) | external :80 | 0/1 | 1/2 |
-| sandbox | ACA session pool, `ghcr.io/intochat/os-sandbox:<ver>` (`CSharpDeployment.cs:87`, `sandboxImage`) | pool endpoint, MI | 0 ready sessions | 1 ready session |
-| api | `acrintochat.azurecr.io/intochat-api:<tag>` | external :8080 | 0/1 | 1/3 |
-| jobs | `acrintochat.azurecr.io/intochat-jobs:<tag>` | internal | 1/1 | 1/2 |
-| portal | static site in the storage account `$web` (deploy plan D5 already uploads it) | Storage static website, or Front Door in prod | n/a | n/a |
+**Graceful shutdown.** `terminationGracePeriodSeconds: 60`. On `SIGTERM`, Orleans shutdown deactivates grains, BrainLog flushes, and the lease is released.
 
-### Data and platform services
+**Ports.**
+- HTTP ingress on 8080 (`DigitalBrainDeployment.cs:141`).
+- An internal `additionalPortMappings` entry for 30000 (gateway, for `DigitalBrain.Mcp` and other clients).
+- **11111 is not mapped.** An ACA port mapping sits behind the app's load-balanced internal endpoint, while silos must reach each other's advertised replica IPs directly.
+
+**Advertised IP.** Leave `Orleans__Endpoints__AdvertisedIPAddress` unset. The `127.0.0.1` override is only for local executables (`DigitalBrainHostingExtensions.cs:89-93`).
+
+**Sizing.** Test is 0.5 vCPU / 1 GiB, which the old kernel ran at, or 1 vCPU / 2 GiB under the "full" option in §7. Prod is 1 vCPU / 2 GiB. The os library default of 2 vCPU / 4 GiB (`DigitalBrainDeployment.cs:147`) becomes a parameter. min=max=1 (`:148-149`) stays.
+
+**Probes.** Liveness and readiness on `/health`. The startup probe has `failureThreshold 30`, `period 10s`. Readiness does not touch any brain, consistent with lazy claims.
+
+### Platform apps
+
+Source: W4 map, `w4-platform-flow-map.md:48`, and `src/`.
+
+| App | Image | Ingress | Min/max test | Min/max prod | Notes |
+| --- | --- | --- | --- | --- | --- |
+| os-ui | `ghcr.io/intochat/os-ui:<DigitalBrainVersion>` | external :80 | 0/1 | 1/1 | deploy plan D1/D4 |
+| sandbox | session pool, `os-sandbox:<ver>` (`CSharpDeployment.cs:87`) | pool endpoint, MI | 0 ready | 1 ready | |
+| api (`IntoChat.Server.API`) | ACR `intochat-api` | external :8080 | 0/1 | 1/3 | Kafka producer (`Server.Infrastructure/.../ServiceCollectionExtensions.Settings.cs:19-27`). Scale-to-zero in test needs `KafkaReadinessHealthCheck` to tolerate cold start |
+| jobs (`IntoChat.Server.Jobs.API`) | ACR `intochat-jobs` | internal | 1/1 | 1/1 | Hangfire server, which needs exactly one always-on instance per queue set |
+| bot (`IntoChat.Bot`) | ACR `intochat-bot` | external :8080 (Telegram webhook) | 1/1 | 1/1 | Kafka consumer (`IntoChat.Bot/Program.cs:24`) plus Telegram (`:37-38`). The kit already models it (`ContainerAppsService.cs:115`). Secret `telegram-bot-token` |
+| portal = `IntoChat.WebUI` | Vite static build in `$web` | Storage static website (Front Door optional in prod) | n/a | n/a | uploaded by CI (deploy plan D5) |
+| `IntoChat.MiniApp` | — | — | — | — | **Out of scope.** The deploy plan deleted its publish steps. The project only keeps building in CI |
+
+### Data services
 
 - **Postgres Flexible Server.**
-  - Test: B1ms, 32 GB, no HA. Prod: B2s, 64 GB, 7-day PITR, no HA at first.
-  - VNet-integrated on `snet-postgres`. Entra authentication on; the platform identity is the Entra admin for the `intochat` database.
-- **Event Hubs.** Basic with 1 TU in test (1 consumer group, 1-day retention). Standard with 1 TU in prod (needed for more than one consumer group and for Kafka endpoints, if platform uses Kafka clients).
-- **Front Door Standard.** Optional, prod only, and off by default.
+  - Test: B1ms, 32 GB. Prod: B2s, 64 GB, 7-day PITR. No HA.
+  - VNet-integrated, Entra auth on.
+  - Optional in test: stop/start outside working hours (see §7).
+- **Event Hubs Standard, 1 TU, in both environments.**
+  - Learn: "Event Hubs for Kafka isn't supported in the basic tier". Basic also has only `$Default`, which breaks `app-consumer-group` (`EventHubsService.cs:88,107`).
+  - Hubs: the topics platform uses (W4 lists them). Retention 1 day in test, 3 days in prod.
+- **Front Door Standard.** Optional, prod only, off by default.
 
 ### Naming and tags
 
-Pattern: `<abbr>-intochat-<env>[-<role>]`, using CAF abbreviations (`rg`, `vnet`, `snet`, `cae`, `ca`, `psql`, `evhns`, `kv`, `id`, `log`, `appi`, `afd`). Storage accounts and ACR do not allow hyphens, so they are `stintochat<env><4-char suffix>` and `acrintochat`. Key Vault names are global and can be at most 24 characters: `kv-intochat-test-<4>`.
+Pattern: `<abbr>-intochat-<env>[-<role>]`, using CAF abbreviations. Exceptions: `stintochat<env><4>` and `acrintochat`, which allow no hyphens. Key Vault is `kv-intochat-<env>-<4>` (21 characters, within the 24 limit).
 
-Every resource gets the tags `app=intochat`, `env=test|prod`, `owner=vlad@intochat.io`, `managed-by=pulumi`, `repo=intochat/platform`. Shared resources (`acrintochat`, and the Pulumi state if self-hosted) live in `rg-intochat-shared` with `env=shared`.
+Every resource is tagged `app=intochat`, `env`, `owner=vlad@intochat.io`, `managed-by=pulumi`, `repo=intochat/platform`. Shared resources live in `rg-intochat-shared` with `env=shared`.
 
 ---
 
 ## 3. OS storage analysis and recommendation
 
-### 3.1 What the OS persists today (from code)
+### 3.1 What the OS persists (from code)
 
 | Data | Where the code puts it | Durable today? | Notes |
 | --- | --- | --- | --- |
-| Cluster membership | `UseAzureStorageClustering` (`OrleansStorageHosting.cs:65`), or `UseLocalhostClustering` when no integration is set (`:50-52`) | Azure Table in the live kernel | Losing it is harmless once silos are stopped. It only needs to survive while silos run |
-| Reminders | `UseAzureTableReminderService` (`:66`), or in-memory (`:53`). In hosted mode, `HostedReminderTable` (`HostedAuthorityHosting.cs:88-89`) | Azure Table | **Must** be durable. Lost reminders are silent functional loss |
-| Platform grain state (identity, cookie keys, deployment identity) | `AddAzureBlobGrainStorage` per store (`OrleansStorageHosting.cs:72-80`), plus the keyed `BlobServiceClient` "GrainState" (`:67-71`) | Blob `grainstate` | **Must** be durable. Losing the cookie keys logs everyone out; losing identity loses accounts |
-| Cluster grain state = **BrainLog** (neurons, journals, user apps and their state) | `AddBrainStorage` replaces the cluster grain store with `BrainGrainStorage` over `BrainLogs` (`BrainStorageHosting.cs:29-31`). This is an encrypted segment log in the local directory `DigitalBrain:Platform:Storage:Directory` (`BrainStoreOptions.cs:6`, `DigitalBrainNames.cs:16`). A single writer is enforced by `writer.lock` with `FileShare.None` (`BrainLog.cs:52-56`) | **Not durable in ACA today.** The container filesystem is ephemeral, so every revision or restart loses it | This is the brain itself. Most important finding of this review |
-| Signal journal | `BrainSignalJournal` over the same BrainLogs (`BrainStorageHosting.cs:27-28`) | Same as BrainLog | |
-| Master key | `MasterKeyCustody`. In production it must be TPM or `ConfiguredCustodyAcknowledged` (`BrainStorageHosting.cs:40-44`) | Configured key from Key Vault | Without this key, the BrainLog cannot be read. Back up the Key Vault secret |
-| Vectors | Qdrant module (`QdrantModuleOptions.cs:8-10`), with `InMemoryQdrant.cs` as a fallback | Qdrant Cloud, outside Azure (`qdrant-conn`) | Can be rebuilt from BrainLog content. Durable but not critical |
+| Membership | `UseAzureStorageClustering` (`OrleansStorageHosting.cs:65`); localhost when no integration is set (`:47-52`) | Azure Table (live kernel) | Only needs to survive while silos run |
+| Reminders | `UseAzureTableReminderService` (`:66`); in-memory (`:53`); hosted `HostedReminderTable` (`HostedAuthorityHosting.cs:88-89`) | Table | **Must** be durable |
+| Platform grain state (identity, cookie keys, deployment identity) | Blob grain storage per store (`OrleansStorageHosting.cs:72-80`) plus the keyed `BlobServiceClient` (`:67-71`) | Blob | **Must** be durable |
+| Cluster grain state = **BrainLog** (neurons, journals, user apps and their state) | `BrainGrainStorage` over `BrainLogs` replaces the cluster store (`BrainStorageHosting.cs:29-31`). Encrypted segment log under `DigitalBrain:Platform:Storage:Directory` (`BrainStoreOptions.cs:6`, `DigitalBrainNames.cs:16`). Ownership is `writer.lock` with `FileShare.None` (`BrainLog.cs:51-58`) | **No.** The ACA container disk is ephemeral | The brain itself |
+| Signal journal | `BrainSignalJournal` over BrainLogs (`BrainStorageHosting.cs:27-28`) | as BrainLog | |
+| Master key | Configured custody in Production requires `ConfiguredCustodyAcknowledged` (`BrainStorageHosting.cs:40-44`) | Key Vault secret | Losing it makes BrainLog unreadable. Purge protection is on in **both** environments |
+| Vectors | Qdrant via `QdrantConnection.cs` (connection from `qdrant-conn`); `InMemoryQdrant.cs:5` is the fallback when no connection is composed | Qdrant Cloud | Rebuildable from BrainLog |
 
-Storage format: BrainLog segments carry a format byte, `BrainLogFormat { Legacy = 0, Framed = 1 }` (`BrainLogModel.cs:6`). New writes use `Legacy` until a release flips `WriteFormat=Framed` (`BrainStoreOptions.cs:9-10`). A portable export exists: `BrainExport(FormatVersion, BrainScope, Sequence, Records…)` (`BrainLogModel.cs:8-9`). The hosted journal refuses to start silently over an existing Orleans grain-state store (`HostedAuthorityHosting.cs:80-83`). Format migration is therefore explicit and version-tagged. The infrastructure design below keeps every store addressable by format version, so W1 can migrate without an infrastructure rewrite.
+Format versioning:
+- Segments carry `BrainLogFormat { Legacy = 0, Framed = 1 }` (`BrainLogModel.cs:6`). Writes stay `Legacy` until `WriteFormat=Framed` (`BrainStoreOptions.cs:9-10`).
+- A portable `BrainExport(FormatVersion, …)` exists (`BrainLogModel.cs:8-9`).
+- The hosted journal refuses to replace an existing grain-state store (`HostedAuthorityHosting.cs:80-83`).
 
-Two code facts constrain the infrastructure:
-1. The Orleans integration takes **connection strings only** (`new TableServiceClient(clustering)`, `new BlobServiceClient(grainState)`, `OrleansStorageHosting.cs:65-74`). The os Pulumi library already grants the runtime MI Table and Blob roles and provides only endpoints (`DigitalBrainDeployment.cs:174-185`). To run with "no shared keys", the integration must accept a **service URI** and use `DefaultAzureCredential` when the value is a URI (os PR S1, §9).
-2. All three integration keys must be set, or none of them (`OrleansStorageHosting.cs:33-38`). With none set, the silo uses localhost clustering, which works only for a **single replica**.
+Code constraints:
+1. The Orleans integration takes connection strings only (`OrleansStorageHosting.cs:65-74`). S1 adds service-URI plus `DefaultAzureCredential` support. The reviewer confirms that `TableServiceClient(Uri, TokenCredential)` fits Orleans' options.
+2. The three integration keys are all-or-none (`:33-38`). With none set, the silo uses localhost clustering and only one replica is possible.
 
 ### 3.2 Can test start in-memory?
 
-Yes, technically. Leave `DigitalBrain__Integrations__orleans__*` empty, and the silo runs with localhost clustering, in-memory reminders and in-memory platform stores (`OrleansStorageHosting.cs:34,47-60`). BrainLog would then write to the container's ephemeral disk.
+Yes. With the three `DigitalBrain__Integrations__orleans__*` keys empty, the silo uses localhost clustering, in-memory reminders and in-memory platform stores (`OrleansStorageHosting.cs:34,47-60`). `AddBrainStorage` still runs, so the Production custody guard (`BrainStorageHosting.cs:43-44`) still needs `ConfiguredCustodyAcknowledged=true` and the `master-key` secret, even in memory mode. Everything is lost on restart.
 
-Consequences:
-- Every deploy, restart or ACA platform move wipes accounts, cookie keys (forcing re-login), reminders, and all brain content.
-- Only one replica is possible.
-- Nothing about durability, the 2-silo setup or migration gets tested.
-
-**Decision:** do not run in-memory in `test` beyond the first bootstrap deploy. Gate G2a (§9) may deploy once in-memory to prove the pipeline, ingress, os-ui and Key Vault wiring before S1 lands. From G2b onwards, `test` is durable. The cost of durability in `test` is about $3 to $6 per month, so in-memory saves nothing worth the lost signal.
+**Decision:** memory mode only for the first bootstrap deploy (G2a), to prove the pipeline, ingress, os-ui and Key Vault. `test` is durable from G2b. Durability costs about $3-6 per month.
 
 ### 3.3 Durable options
 
-| Option | Clustering | Reminders | Platform grain state | BrainLog | Fit | Est. $/mo test | Est. $/mo prod |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| **A. Azure Table + Blob + Azure Files** (live today, plus Files) | Table | Table | Blob | Azure Files SMB share mounted at `/data/brain` | Works with today's code, plus S1 for MI. Proven live. Cheapest | **3-6** (LRS; Files transaction-optimized, 5-20 GB) | **8-20** (ZRS, snapshots) |
-| B. Postgres via Orleans ADO.NET (`Microsoft.Orleans.Clustering.AdoNet` / `Reminders.AdoNet` / `Persistence.AdoNet`) | Postgres | Postgres | Postgres | Still Azure Files, or a new Postgres-backed BrainLog store (W1) | Reuses the server platform already needs, so close to $0 extra. Needs Orleans SQL scripts run as migrations, a new provider branch in `OrleansStorageHosting`, and Entra-token auth for Npgsql. Membership polling adds load to a B1ms | **0-2** extra on the platform server (still about 2 for Files) | **0-15** extra (a larger SKU may be needed) |
-| C. Cosmos DB (`Orleans.Clustering.Cosmos`, `Persistence.Cosmos`, `Reminders.Cosmos`) | Cosmos | Cosmos | Cosmos | Files, or a new Cosmos store | Global distribution, which is not needed. Serverless is cheap when idle, but membership heartbeats cost RUs all the time. Provisioned has a 400 RU/s minimum, about $24 per container or per shared-throughput database. Adds a third data technology | **5-25** serverless | **25-60** provisioned (autoscale 1000 RU/s shared) |
-| D. In-memory | localhost | memory | memory | ephemeral | Bootstrap only | 0 | not allowed |
+| Option | Clustering / reminders | Platform grain state | BrainLog | Fit | Est. $/mo test | prod |
+| --- | --- | --- | --- | --- | --- | --- |
+| **A. Table + Blob + Azure Files, plus Blob-lease ownership** | Table | Blob | SMB share; ownership is a Blob lease (S5) | Today's code plus S1 and S5. Cheapest | **3-6** | **8-20** |
+| A′. Table + Blob + Blob-native BrainLog | Table | Blob | Block/append blobs plus lease (W1) | No mount and no shared key. Runtime-agnostic. Larger os change | 3-5 | 8-15 |
+| B. Postgres via Orleans ADO.NET | Postgres | Postgres | Files + lease, or a DB-backed BrainLog (W1) | Reuses the platform server (about $0-15 extra). Needs Orleans SQL scripts, a provider branch and Npgsql Entra tokens. Couples the OS to platform's database | 0-2 extra | 0-15 extra |
+| C. Cosmos DB | Cosmos | Cosmos | Files or new store | Heartbeats burn RUs. A third data technology | 5-25 | 25-60 |
+| D. In-memory | localhost | memory | ephemeral | G2a only | 0 | not allowed |
 
-BrainLog options compared:
-- **Azure Files SMB (recommended now).** Supports the `FileShare.None` lock semantics that `BrainLog.Claim` relies on. Survives revisions. Snapshots provide backup.
-  - Caveat: ACA mounts Azure Files with the **storage account key**, configured as an environment storage definition. This is the single documented exception to "no shared keys". The key lives only in the ACA environment storage resource, which Pulumi sets from `listStorageAccountKeys` and which never reaches a container or GitHub. Rotate it with `az storage account keys renew` plus `pulumi up`.
-  - Rejected NFS (Premium FileStorage, 100 GiB minimum, about $16 per month): no key, but its lock semantics differ from SMB.
-- **Blob-native BrainLog (W1 target).** Append blobs or block blobs for segments, with a blob **lease** replacing `writer.lock`. This is MI-only and has no mount, and it is the natural backend for a runtime-agnostic store. When W1 ships it, migration is: `BrainExport` from the Files store, then import into the Blob store under a new `FormatVersion`, then switch config (§3.5).
+Why Files needs S5:
+- .NET on Linux emulates `FileShare.None` with advisory `flock`. Across CIFS clients, enforcement depends on mount options.
+- Microsoft's mount guidance recommends `nobrl` (Learn, "Azure Files guidance for AKS workloads": "Disable byte-range locks"), and `nobrl` makes locks local to one client.
+- The earlier claim that SMB "supports the `FileShare.None` semantics" across replicas is withdrawn.
+- NFS (Premium, 100 GiB minimum, about $16 per month) has the same advisory-lock question, so it does not solve this either.
+- Ownership must therefore come from the service, not the filesystem: a **Blob lease**, which is enforced server-side, works under MI, and has a 15-60 s duration or is infinite.
 
 ### 3.4 Recommendation
 
-**Option A for both test and prod:**
-- Azure Table for clustering and reminders.
-- Blob for platform grain state.
-- Azure Files (SMB) for BrainLog.
-- One StorageV2 account per environment (LRS in test, ZRS in prod), accessed by the runtime MI with `Storage Table Data Contributor` and `Storage Blob Data Contributor`. The Files mount is the one key-based exception.
+**Option A with S5 in test and prod. A′ is the W1 target.** Infinitely-scaled storage is not needed. What matters:
+- Proven code paths.
+- Single-digit dollars.
+- The OS stays independent of platform's Postgres, which matches W1's runtime-agnostic aim and self-hosting.
+- A clean path to A′ through versioned stores.
 
-Rationale:
-- It is the code path that runs live today.
-- It costs single-digit dollars.
-- It keeps the OS independent of the platform's Postgres, so a self-hoster's OS deployment does not need a SQL server, which matches W1's runtime-agnostic aim.
-- It isolates OS blast radius from platform database incidents.
+**Clustering provider: Azure Table.** No Kubernetes API or SQL schema is needed, it is inspectable with `az storage entity query`, and `DigitalBrain.Mcp` already joins through it (`src/DigitalBrain.Mcp/DigitalBrain.Mcp/Program.cs:9`; `DigitalBrainHostingExtensions.cs:160-166`).
 
-Option B is the documented next step if we want fewer moving parts, and it becomes attractive only once W1 offers a database-backed BrainLog. Cosmos is rejected at this scale.
+**Single-writer mechanism (os PR S5, required before durable test G2b):**
+1. **Lease ownership.** `BrainLog.Claim` gains an `IBrainOwnership` seam.
+   - The default is the existing `writer.lock`, so local and self-hosted behaviour is unchanged.
+   - The Azure implementation acquires a 60-second Blob lease on `brainlease-v1/<brainId>` (MI, `BlobLeaseClient`) and renews it every 20 seconds.
+   - Failure to acquire throws the existing `BrainNotOwnedException` (`BrainLog.cs:57`).
+2. **Fencing.** Each append checks that the lease is held (the renewal loop records the last successful renewal). If the last renewal is older than 40 seconds, the log faults and refuses writes, so a paused or partitioned old silo cannot write after its lease expires.
+   - The lease ID is also written into the segment header (Framed format), so a later reader can detect an interleaving.
+3. **Lazy claim with bounded retry.** Claims stay lazy (`BrainLogs.cs:25-50`). On `BrainNotOwnedException`, the brain grain retries with backoff for up to 90 seconds, which covers the old revision's 60-second graceful drain, and then returns 503 with `Retry-After`. Readiness never claims.
+4. **Release on shutdown.** `BrainLog.Dispose` releases the lease, so a graceful drain hands over in seconds rather than after the 60-second expiry.
+5. **Observability.** A `brainlog.ownership` metric and log events (`acquired`, `refused`, `lost`, `released`).
 
-**Orleans clustering provider: Azure Table.** It needs no Kubernetes API or SQL schema. Membership is visible with `az storage entity query`. It works the same for one silo or many, and `DigitalBrain.Mcp` already joins as a client through it (`src/DigitalBrain.Mcp/DigitalBrain.Mcp/Program.cs:9`; `DigitalBrainHostingExtensions.cs:160-166`).
+Owner-visible cost of this design: during a deploy, a brain that is busy on the old revision can see up to about 60-90 seconds of retry/503 on its first call through the new revision. Other brains are unaffected, and there is no full downtime window. The rejected alternative, stop-then-start with Multiple revision mode, would cost 1-2 minutes of full downtime per deploy and still not cover platform pre-warm overlaps.
 
-Layout, made versionable for W1:
-- Table names: `OrleansSiloInstances` and `OrleansReminders` (Orleans defaults). Partitioned by `ServiceId=intochat-<env>`, so test and prod could share an account but do not.
-- Blob container: `grainstate-v1`, via `DigitalBrain__Integrations__orleans__GrainStateContainer` (`OrleansModule.cs:18`).
-- File share: `brainlog-v1`, mounted at `/data/brain/v1`, with `DigitalBrain__Platform__Storage__Directory=/data/brain/v1`.
-- A format migration writes into `-v2` beside `-v1`. Rollback means pointing config back at `-v1`, which stays read-only until the owner deletes it.
+**Layout (versionable for W1):**
+- Tables `OrleansSiloInstances` and `OrleansReminders`, partitioned by `ServiceId=intochat-<env>`.
+- Container `grainstate-v1` (`DigitalBrain__Integrations__orleans__GrainStateContainer`, `OrleansModule.cs:18`).
+- Share `brainlog-v1` mounted at `/data/brain/v1`.
+- Lease container `brainlease-v1`.
+- A format migration writes `-v2` beside `-v1`. Rollback points config back at `-v1`, which stays read-only until owner sign-off.
 
-**2-replica silo test before prod (gate G4):**
-1. On `test`, set `osMaxReplicas=2` and `osMinReplicas=2` through stack config. Keep `Single` revision mode.
-2. Verify membership: `az storage entity query --table-name OrleansSiloInstances --account-name <st> --auth-mode login --filter "Status eq 3"` returns two rows with different subnet IPs. Status 3 is Active.
-3. Verify cross-silo calls: an os smoke endpoint that activates 100 grains reports both silo addresses, and the smoke script asserts that both appear.
-4. **BrainLog ownership.** Both replicas mount the same share. A brain's `writer.lock` must be held by exactly one silo. A second activation elsewhere must fail fast or route, never write. Expected today: the claim fails on the second silo (`BrainLog.cs:55-56`).
-   - If grain placement can activate the same brain on both silos, the OS needs brain-affinity placement, such as a placement director keyed by brain ID or a single brain-host grain per brain. That is a W1 code item, and **prod stays at min=max=1 until it is fixed**.
-   - The design permits prod with one replica, at about $35 per month less.
-5. Kill one replica (`az containerapp replica list` plus a revision restart). Verify that the membership row goes to Dead within about 60 seconds and that grains reactivate on the survivor.
-6. Deploy a new revision while two replicas run. Verify that there are no cross-version join errors in App Insights (`traces | where message has "incompatible"`), and that reminders fire exactly once (a test reminder writes a counter).
-7. Record the results in the ledger. Raise prod `minReplicas` to 2 only if all steps pass.
+**Mount options (recorded in Pulumi `mountOptions`):** `dir_mode=0700,file_mode=0600,uid=<app uid>,gid=<app gid>,mfsymlinks,cache=strict,actimeo=30,nosharesock`. `nobrl` is deliberately **not** set: lease ownership does not depend on it, and leaving byte-range locks on keeps `writer.lock` as a second guard. The G2-L spike measures whether that guard holds across replicas, but correctness never relies on it.
+
+**Gate G2-L: BrainLog lock spike (before G2b).** On `test`, with a throwaway image built from S5:
+1. Run two replicas of a spike app mounting `brainlog-v1` with the exact options above. Record whether `writer.lock` is exclusive across replicas, for information.
+2. Prove that a second lease acquire fails with `BrainNotOwnedException`.
+3. Kill the owner (`az containerapp revision restart`). The survivor acquires the lease within 60 seconds and the killed side never writes again (fencing).
+4. Deploy a new revision while a brain is busy. Expect no `BrainNotOwnedException` after the retry window, and the durability canary intact.
+5. Benchmark: p95 append latency under 20 ms on transaction-optimized Standard storage (prod gate).
+
+**Gate G4: 2-replica silo spike, which may fail, before raising prod above 1.**
+1. Set `osMinReplicas=osMaxReplicas=2` on test.
+2. Membership: `az storage entity query … --filter "Status eq 3"` returns two rows with distinct subnet IPs.
+3. Cross-silo grain calls report both silo addresses.
+4. With S5, the same brain never has two writers (ownership metrics).
+5. Kill a replica. Its membership row goes to Dead within about 60 seconds and grains reactivate.
+6. Deploy during the 2-replica run. No cross-version errors, and reminders fire exactly once.
+
+If step 2 or 3 fails, prod stays at 1 replica and multi-silo moves to "AKS or W1 placement" (§10).
 
 ### 3.5 Migration of the live kernel's data
 
-`stdbraindeve2c940` holds Orleans tables and blobs, but the live kernel's BrainLog was on ephemeral disk, so there is no brain content to carry. Migrating platform grain state (identity, cookie keys) from the old account is **not planned**: test starts clean.
-- O9 exports the containers with `az storage blob download-batch` to a local archive for 30 days, before the old resources are deleted.
-- If the owner wants accounts carried over, it is a separate task: copy `grainstate` blobs with `azcopy` into `grainstate-v1`, keeping the same ServiceId-derived blob names. That requires `ServiceId=digitalbrain`, which conflicts with the `intochat-test` naming, so it is not recommended.
+The live kernel's BrainLog was on ephemeral disk, so it holds no brain content. The storage account's containers, however, have not been counted:
+- A read-only `az storage blob list --auth-mode login` on 2026-10-18 was refused, because the caller has no Blob data-plane role.
+- Operator step O9a assigns `Storage Blob Data Reader` temporarily and records the blob count and size per container.
+- If `digitalbrain-v2-journal` or `digitalbrain-v2-state` hold data, the owner decides whether it matters before O9 deletes anything.
+
+Test starts clean: `ServiceId=intochat-test` differs from the old `digitalbrain`, so carrying grain state over would need a renaming copy, which is not planned.
 
 ---
 
 ## 4. Secrets and identity
 
-### ADR A2. Managed identity everywhere; Key Vault references; no shared keys except the Files mount
+### ADR A2. Managed identity first. Key Vault references. Documented key exceptions only
 
-- **Identities.** Two user-assigned identities per environment:
-  - `id-intochat-<env>-runtime`, used by the OS app, os-ui and the sandbox pool caller.
-  - `id-intochat-<env>-platform`, used by api and jobs.
-  - User-assigned rather than system-assigned, so that role assignments exist before the first revision starts. This is the pattern of `DependsOn = context.RuntimeGrants` (`DigitalBrainDeployment.cs:151`).
-- **Role assignments, scoped to the resource and not the RG:**
-  - runtime: `Storage Table Data Contributor` and `Storage Blob Data Contributor` on the storage account (`DigitalBrainDeployment.cs:184-185`), `Key Vault Secrets User` on the vault (`:183`), `AcrPull` on `acrintochat` (`:186`), and `Azure ContainerApps Session Executor` on the sandbox pool.
-  - platform: `Key Vault Secrets User`, `AcrPull`, `Azure Event Hubs Data Owner` on the namespace (Sender + Receiver if we split), Entra database role on Postgres, and `Storage Blob Data Contributor` on `$web` for portal upload from CI.
-- **Key Vault.** RBAC mode, soft-delete with 90-day retention, purge protection on in prod. Container App secrets are `keyVaultUrl` + `identity` references (`DigitalBrainDeployment.cs:124`). No inline secret values are stored in ACA.
-- **Secret inventory per environment:**
-  - `openai-key` and `qdrant-conn`.
-  - `auth-username` and `auth-password` (only while basic auth posture remains).
-  - `master-key`, the BrainLog configured custody. Generated by Pulumi `RandomBytes` once, `protect: true`, `ignoreChanges`.
-  - `cookie-protection`, if not already blob-backed.
-  - `ghcr-read-token`, until os is public (deploy plan O5).
-  - Platform app secrets, which W4 lists.
-- **Postgres.** Entra-only authentication in prod. In test, password auth stays enabled only for the initial admin bootstrap, and the password is generated into Key Vault. Apps connect with the MI token (Npgsql `UsePeriodicPasswordProvider` with `DefaultAzureCredential`). The existing `dbPassword` config (`Program.cs:16-19`) becomes the break-glass admin password, stored in ESC as a secret.
-- **Event Hubs.** MI only. `disableLocalAuth=true`, so no SAS connection strings.
-- **Storage.** `allowSharedKeyAccess=true` is still required for the ACA Files mount (§3.3). Everything else uses MI. When W1 moves BrainLog to Blob, set `allowSharedKeyAccess=false` and delete the environment storage definition.
-- **GHCR pull.** os-ui and os-sandbox are private until the public flip.
-  - ACA registry credentials for `ghcr.io`: username `intochat-bot` and `passwordSecretRef` set to the Key Vault secret `ghcr-read-token` (a fine-grained PAT with `read:packages` only, 90-day expiry).
-  - After the flip, remove the registry entry and the secret. The deploy plan's `ghcrReadToken` check (`DistributionFixTests.cs:29` on PR #5) stays.
-- **Pull alternative (A2b).** Mirror os-ui and os-sandbox into `acrintochat` during deploy (`az acr import --source ghcr.io/intochat/os-ui:<v>`). The apps then pull only from ACR with MI, and the PAT lives only in GitHub. This is preferred if PAT rotation is a concern. It costs nothing extra on ACR Basic (10 GB included).
-- **CI identity.** One Entra app per environment, with federated credentials:
-  - `repo:intochat/platform:environment:test` for the test app.
-  - `repo:intochat/platform:environment:production` for the prod app.
-  - The test app has `Contributor` + `User Access Administrator` (conditioned to the roles above) on `rg-intochat-test` and `rg-intochat-shared`. The prod app has the same on `rg-intochat-prod`. Neither can touch the other's environment.
+- **Identities.** User-assigned: `id-intochat-<env>-runtime` (OS, os-ui, sandbox caller) and `id-intochat-<env>-platform` (api, jobs, bot). Role grants exist before the first revision (`DependsOn = context.RuntimeGrants`, `DigitalBrainDeployment.cs:151`).
+- **Runtime roles:**
+  - `Storage Table Data Contributor` and `Storage Blob Data Contributor` on the account (`:184-185`). Blob covers `grainstate-v1` and `brainlease-v1`.
+  - `Key Vault Secrets User` (`:183`).
+  - `AcrPull` (`:186`).
+  - `Azure ContainerApps Session Executor` on the pool.
+- **Platform roles:** `Key Vault Secrets User`, `AcrPull`, Entra database role on Postgres.
+- **CI identity** (Entra app `gh-intochat-platform-<env>`, OIDC):
+  - `Storage Blob Data Contributor` scoped to the `$web` container, for the portal upload. This grant moved from the runtime MI.
+  - `AcrPush` on `acrintochat`.
+  - `Contributor` plus RBAC-administration conditioned to the roles above, on its own RG and `rg-intochat-shared`.
+- **Key Vault.** RBAC mode, soft-delete 90 days, **purge protection on in test and prod**. Losing `master-key` loses the brain. Note: purge protection locks the vault name for 90 days after a delete.
+  - Secrets are `keyVaultUrl` + identity references (`DigitalBrainDeployment.cs:124`).
+  - Inventory: `openai-key`, `qdrant-conn`, `auth-username`, `auth-password`, `master-key` (Pulumi `RandomBytes`, `protect`, `ignoreChanges`), `ghcr-read-token` (until os is public), `telegram-bot-token`, `eventhubs-kafka-conn` (ADR A5), `db-admin-password` (break-glass), plus platform secrets from W4.
+- **ACR.** `AdminUserEnabled=false` (today `true` at `ContainerRegistryService.cs:55`). Pull with MI only.
+- **Postgres.** Entra auth for apps (Npgsql periodic password provider with `DefaultAzureCredential`). Password auth exists only for the break-glass admin (`Program.cs:16-19` `dbPassword`, kept in ESC).
+- **Storage.** `allowSharedKeyAccess=true` remains, for the ACA Files mount only. The key lives in the environment storage definition and never reaches a container or GitHub. Rotate it with `az storage account keys renew` plus `pulumi up`. A′ (W1) removes it.
+- **GHCR.** ACA registry credentials for `ghcr.io` with `passwordSecretRef` set to the Key Vault secret `ghcr-read-token` (fine-grained PAT, `read:packages`, 90 days, rotated by the owner). Alternative A2b: `az acr import` os-ui and os-sandbox into ACR during deploy, so apps pull only from ACR with MI.
+
+### ADR A5. Event Hubs auth: keep Kafka SASL PLAIN with a scoped SAS connection string in Key Vault now; OAUTHBEARER with MI later
+
+- **Decision for test and initial prod.**
+  - Keep platform's current client code: SASL `Plain` (`ContainerAppsService.cs:391`) with the connection string.
+  - Change the kit to create a namespace rule `app-kafka` with `Send` and `Listen` only, instead of `RootManageSharedAccessKey` (`EventHubsService.cs:89-95`).
+  - Store its connection string in Key Vault as `eventhubs-kafka-conn` and reference it from api and bot.
+  - `disableLocalAuth=false`.
+- **Why.** It needs no client code change, and W4 has not scoped Kafka. The risk is limited: a non-Root rule, the secret only in Key Vault, rotation by regenerating the rule key plus `pulumi up`.
+- **Later (platform PR P6, after W4).** Confluent.Kafka `SaslMechanism.OAuthBearer` with an `OAuthBearerTokenRefreshHandler` that gets an Entra token for `https://<ns>.servicebus.windows.net/.default` through `DefaultAzureCredential`. Then grant `Azure Event Hubs Data Sender` (api) and `Azure Event Hubs Data Receiver` (bot), set `disableLocalAuth=true`, and delete the rule.
+- **Rejected for now:** MI-only, which blocks test on unscoped client work.
 
 ---
 
 ## 5. Pulumi design
 
-### ADR A3. One platform Pulumi program, two stacks, OS runtime defined once
+### ADR A3. Platform owns the foundation; os contributes only the runtime app, with no second foundation
 
-- Project `intochat-infrastructure`, config namespace `intochat`, stacks `test` and `prod` in Pulumi Cloud (org `intochat`).
-- The OS runtime resources come from the os `DigitalBrain.Deployment` library's shape. The platform program calls it, or a DeploymentKit equivalent extracted from it, instead of PR #5's hand-written `ContainerAppsService` distribution block. This keeps one definition of the silo's ports, identity, storage grants and `Orleans__*` env.
-  - Today the os library builds its own environment and subnet, and depends on the `DeploymentKit` package (`DigitalBrain.Deployment.csproj:8`).
-  - The change: let it accept an existing environment, subnet and identity as inputs, so platform owns the shared foundation (os PR S2).
+Today the os library calls the external `DeploymentKit` package's `DeploymentKitFoundation.DeployAsync`. That call creates its own RG, VNet 10.0.0.0/16, Key Vault, ACR and storage (`DigitalBrainDeployment.cs:41,52-77`). Called unchanged from platform, it would duplicate the foundation that platform's `TripRadar.DeploymentKit` creates.
 
-### Stack config schema (`Pulumi.test.yaml` / `Pulumi.prod.yaml`)
+**S2 (os) rescope:**
+- Split `DigitalBrainDeployment.RunAsync` into two parts:
+  - (a) `DeployFoundation(...)`, the current behaviour for standalone or self-hosted use.
+  - (b) `DeployRuntime(DeploymentFoundation foundation, RuntimeOptions)`. It creates only the runtime identity grants, Key Vault secrets, the Files volume, the environment storage definition, the lease container and the OS Container App, reusing the given environment, subnet, identity, vault, registry and storage.
+- Unit test: given a foundation, no `ResourceGroup`, `VirtualNetwork`, `Subnet`, `ManagedEnvironment`, `Vault`, `Registry` or `StorageAccount` resource is registered.
+- **Ownership.** Platform's `TripRadar.DeploymentKit` (renamed in P3 to `IntoChat.DeploymentKit`) owns the RG, VNet, workload-profile environment, Key Vault, ACR, storage, Postgres, Event Hubs and Log Analytics. Platform maps its outputs to the os `DeploymentFoundation` record (`DeploymentFoundation.cs`).
+- **Dependency note.** Platform gains a transitive dependency on the external `DeploymentKit` package through `DigitalBrain.Deployment`, unless S2 also moves `DeploymentFoundation` and `DeployRuntime` into an assembly that does not reference it. **Recommended:** S2 puts `DeployRuntime` in `DigitalBrain.Deployment.Runtime`, which depends only on `Pulumi.AzureNative`, and leaves `DeployFoundation` in the existing assembly.
+
+### Stack config schema (`Pulumi.test.yaml`)
 
 ```yaml
 config:
   azure-native:location: polandcentral
-  intochat:env: test                      # test | prod; replaces tripradar:environment string switch
+  intochat:env: test
   intochat:namingPrefix: intochat-test
   intochat:resourceGroupName: rg-intochat-test
   intochat:tags: { app: intochat, env: test, owner: vlad@intochat.io }
-  intochat:network:vnetAddressSpace: 10.20.0.0/16
-  intochat:network:appsSubnet: 10.20.0.0/23
-  intochat:network:postgresSubnet: 10.20.2.0/24
-  intochat:os:image: acrintochat.azurecr.io/intochat-distribution   # tag from IMAGE_TAG
-  intochat:os:cpu: 1.0
-  intochat:os:memory: 2Gi
-  intochat:os:minReplicas: 1
-  intochat:os:maxReplicas: 1
-  intochat:os:storageFormat: v1           # selects grainstate-v1 / brainlog-v1
-  intochat:os:storageMode: durable        # durable | memory (memory only allowed when env=test)
-  intochat:osVersion: 0.1.0               # os-ui / os-sandbox tag == DigitalBrainVersion
-  intochat:api: { minReplicas: 0, maxReplicas: 1, cpu: 0.5, memory: 1Gi }
+  intochat:network: { vnetAddressSpace: 10.20.0.0/16, appsSubnet: 10.20.0.0/23, postgresSubnet: 10.20.2.0/24 }
+  intochat:os:
+    image: acrintochat.azurecr.io/intochat-distribution   # tag from IMAGE_TAG
+    cpu: 0.5
+    memory: 1Gi
+    minReplicas: 1
+    maxReplicas: 1                         # >1 only after G4 and W1 placement
+    storageFormat: v1                      # grainstate-v1 / brainlog-v1 / brainlease-v1
+    storageMode: durable                   # durable | memory (memory only when env=test, G2a)
+    ownership: blobLease                   # blobLease | fileLock (fileLock only for G2-L comparison)
+  intochat:osVersion: 0.1.0                # os-ui / os-sandbox tag == DigitalBrainVersion
+  intochat:api:  { minReplicas: 0, maxReplicas: 1, cpu: 0.5,  memory: 1Gi }
   intochat:jobs: { minReplicas: 1, maxReplicas: 1, cpu: 0.25, memory: 0.5Gi }
+  intochat:bot:  { enabled: true, minReplicas: 1, maxReplicas: 1, cpu: 0.25, memory: 0.5Gi }
   intochat:postgres: { sku: Standard_B1ms, tier: Burstable, storageGb: 32, ha: false }
-  intochat:eventHubs: { sku: Basic, capacity: 1, hubs: [platform-events] }
+  intochat:eventHubs: { enabled: true, sku: Standard, capacity: 1, retentionDays: 1, consumerGroups: [app-consumer-group] }
   intochat:storage: { sku: Standard_LRS, brainlogQuotaGb: 20 }
-  intochat:logs: { retentionDays: 30, dailyCapGb: 1 }
+  intochat:logs: { retentionDays: 30, dailyCapGb: 0.5 }
   intochat:frontDoor: { enabled: false }
-  intochat:domains:                       # all optional; empty => *.azurecontainerapps.io FQDNs
-    apiHost: ""
-    osHost: ""
-    uiHost: ""
-    portalHost: ""
-  intochat:pullFromGhcr: true             # false after os public flip or with A2b mirroring
+  intochat:domains: { apiHost: "", osHost: "", uiHost: "", portalHost: "", botHost: "" }  # empty => generated FQDNs
+  intochat:pullFromGhcr: true
 ```
 
-Prod differs in these values: `env: prod`, `10.30.0.0/16`, os min 2 and max 4 (after G4), api 1 to 3, Postgres `Standard_B2s` with 64 GB, Event Hubs `Standard`, storage `Standard_ZRS`, `dailyCapGb: 5`, and optionally `frontDoor.enabled`.
+Prod values: `env: prod`, `10.30.0.0/16`, os 1 vCPU / 2 GiB with min=max=1, api 1-3, Postgres `Standard_B2s` 64 GB, Event Hubs retention 3 days, `Standard_ZRS`, `dailyCapGb: 5`, `frontDoor.enabled` optional. `eventHubs.enabled=false` together with `bot.enabled=false` is the lean option L2 (§7). It needs platform to run with Kafka disabled (P2 adds the switch and makes `KafkaReadinessHealthCheck` conditional).
 
-Domain handling: when a host value is empty, nothing DNS-related is created, and the stack outputs the generated FQDN. When it is set, the stack creates an ACA `ManagedCertificate` and a custom-domain binding. The TXT and CNAME values are exported as outputs for the operator to add at the registrar (O10), and no Azure DNS zone is assumed. This replaces the hardcoded `DevelopmentCustomDomain` (`TripRadarServerConstants.cs:7`) and the token-gated block (`Program.cs:68-97`).
+Domains: when a host is empty, no DNS resources are created and the generated FQDN is used. When it is set, the stack creates a managed certificate and a binding, and exports the TXT/CNAME values (O10). This replaces `DevelopmentCustomDomain` (`TripRadarServerConstants.cs:7`) and the token-gated block (`Program.cs:68-97`).
 
 ### ESC
 
-- Environments `intochat/base`, `intochat/test` and `intochat/prod`. The `test` and `prod` environments import `base`.
-- They replace `esc.base.yaml` and `esc.prod.yaml`, which hold TripRadar placeholders: `subscriptionId: prod-subscription-id` at `esc.prod.yaml:6`, the `tripradar-prod-postgres` FQDN at `:18`, and OTel at `*.tripradar.io` at `:45-46`.
-- What ESC holds:
-  - `azure.login` uses `fn::open::azure-login` with OIDC, per environment.
-  - `pulumiConfig.intochat:*` holds the secrets: `openaiKey`, `qdrantConn`, `ghcrReadToken`, `dbAdminPassword`, `authPassword`.
-  - `environmentVariables`: `AZURE_SUBSCRIPTION_ID`.
-- Pulumi writes the secrets into Key Vault. Apps read only from Key Vault. Stripe, Telegram, Google, Kafka and SERP entries are dropped unless W4 confirms that platform uses them.
+- Environments `intochat/base`, `intochat/test` and `intochat/prod` replace `esc.base.yaml` and `esc.prod.yaml` (placeholders at `esc.prod.yaml:6`, `tripradar-prod-postgres` at `:18`, `*.tripradar.io` OTel at `:45-46`).
+- They hold the OIDC Azure login, `pulumiConfig.intochat:*` secrets (`openaiKey`, `qdrantConn`, `ghcrReadToken`, `dbAdminPassword`, `authPassword`, `telegramBotToken`) and `AZURE_SUBSCRIPTION_ID`.
+- Pulumi writes them into Key Vault. TripRadar-only entries (Stripe, Google, SERP) are dropped unless W4 confirms them. Telegram is kept for the Bot.
 
-### Changes in `IntoChat.Infrastructure` (platform PR P2)
+### Changes in `IntoChat.Infrastructure` (P2)
 
 | File | Change |
 | --- | --- |
-| `Pulumi.yaml` | `name: intochat-infrastructure`, description, default `config: intochat:...` schema |
-| `Pulumi.development.yaml`, `Pulumi.production.yaml` | Delete. Add `Pulumi.test.yaml` and `Pulumi.prod.yaml` (above) |
-| `Constants/TripRadarServerConstants.cs` | Rename to `IntoChatConstants.cs`. Delete `ZoneName`, `Development*`, `DbContextTypeName "TripRadar…"`, `ApiImagePrefix "tripradar-api"` and similar. Keep only config key names. `DefaultLocation` becomes `polandcentral` |
-| `TripRadarDeploymentConfiguration.cs` (392 lines, two near-duplicate builders) | Replace with `IntoChatStackConfiguration.cs`: one `Load(Config)` that returns a typed `StackSettings`, and one `ToInfrastructureSettings()`. No dev/prod branches; differences are config values only |
-| `Models/ProductionDeploymentConfig.cs`, `ProductionApiSettings.cs`, `ProductionNetworkSettings.cs`, `DomainsSettings.cs`, `StaticSiteSettings.cs` | Merge into `Models/StackSettings.cs` (records: `NetworkSettings`, `OsSettings`, `AppSettings`, `PostgresSettings`, `EventHubsSettings`, `DomainSettings` with nullable hosts). Delete `MiniAppHost` |
-| `Program.cs` | Load settings once. `InfrastructureDeployer.DeployAsync` creates the shared foundation (RG, VNet, Log Analytics, App Insights, Key Vault, storage, Postgres, Event Hubs, identities, the ACA workload-profile environment). Then call `OsRuntime.Deploy(foundation, settings.Os)` (the os library, S2), then api and jobs, then `Domains.Bind(...)` if any host is set. Outputs: `resourceGroupName`, `acrLoginServer`, `osUrl`, `uiUrl`, `apiUrl`, `portalUrl`, `storageAccountName`, `keyVaultUri`, plus `dnsRecords` when domains are set |
-| `Helpers/EnvironmentSecretsProvider.cs` | Read secrets from Pulumi config (ESC-fed) only. Remove the env-var fallbacks for TripRadar keys |
-| `esc.base.yaml`, `esc.prod.yaml` | Replace with `esc/intochat-base.yaml`, `esc/intochat-test.yaml`, `esc/intochat-prod.yaml` (templates with no values, applied by the operator, O5) |
+| `Pulumi.yaml` | `name: intochat-infrastructure`, namespace `intochat` |
+| `Pulumi.development.yaml`, `Pulumi.production.yaml` | Delete. Add `Pulumi.test.yaml` and `Pulumi.prod.yaml` |
+| `Constants/TripRadarServerConstants.cs` | Becomes `IntoChatConstants.cs`, with config key names only. Delete `ZoneName`, `Development*` and TripRadar image prefixes. Default location `polandcentral` |
+| `TripRadarDeploymentConfiguration.cs` (392 lines, two near-duplicate builders) | Becomes `IntoChatStackConfiguration.cs`, with one `Load(Config)` returning `StackSettings`. No environment branches |
+| `Models/Production*.cs`, `DomainsSettings.cs`, `StaticSiteSettings.cs` | Merged into `Models/StackSettings.cs`, with nullable hosts. MiniApp is removed |
+| `Program.cs` | Load settings, deploy the foundation via the kit (P3), map it to the os `DeploymentFoundation`, call `DeployRuntime` (S2), then api, jobs and bot, then domains. Outputs: `osUrl`, `uiUrl`, `apiUrl`, `botUrl`, `portalUrl`, `acrLoginServer`, `storageAccountName`, `keyVaultUri`, `dnsRecords` |
+| `Helpers/EnvironmentSecretsProvider.cs` | Pulumi config (ESC) only |
+| `esc.*.yaml` | Replaced with value-free templates `esc/intochat-{base,test,prod}.yaml` |
 
-Changes in `IntoChat.DeploymentKit` (PR P3):
-- `ContainerRegistryService.cs:56-58` moves ACR to `rg-intochat-shared`, or looks it up when it already exists.
-- The environment must be a workload-profile environment on the delegated subnet (today the kit is consumption-only, per the comment at `DigitalBrainDeployment.cs:50-51`).
-- `EventHubsService.cs` sets `disableLocalAuth` and the RBAC grants.
-- The Postgres builder (`InfrastructureBuilder.Data.cs`) sets Entra auth and the MI admin.
-- The storage builder adds the share `brainlog-v1` and the container `grainstate-v1`.
-- PR #5's distribution block in `ContainerAppsService.cs` is replaced by the os library call (A3). Its os-ui app (`:452-502`) is kept and parameterised.
-- `GreenBlue*` services stay unused for the OS, because Single revision mode is used.
+### Changes in platform's kit (P3, `TripRadar.DeploymentKit`, renamed `IntoChat.DeploymentKit`)
 
-### How `Orleans__*` and OS settings are supplied
+- Workload-profile environment (Consumption) on the delegated subnet, plus the NSG rule for 445 to storage.
+- ACR in `rg-intochat-shared` with `AdminUserEnabled=false` (`ContainerRegistryService.cs:55`).
+- Event Hubs Standard, a scoped `app-kafka` rule, the connection string into Key Vault, and the consumer group kept (`EventHubsService.cs:88-107`).
+- Postgres Entra auth with an MI admin.
+- Storage: share `brainlog-v1` and containers `grainstate-v1`, `brainlease-v1`, `$web`.
+- The CI identity grant on `$web`.
+- Bot app wired to Key Vault secrets.
+- **PR #5's distribution block is not merged. Its os-ui app is folded into P3** (review point 5c).
 
-They are set by the OS runtime deployment, never typed into the portal:
+### How `Orleans__*` and OS settings are supplied (by `DeployRuntime`, never by hand)
 
 | Variable | Value | Source |
 | --- | --- | --- |
-| `Orleans__ClusterId`, `Orleans__ServiceId` | `intochat-<env>` (stable across deploys) | `DigitalBrainDeployment.cs:88-89` (`options.Name`) |
-| `DigitalBrain__Integrations__orleans__Clustering` | `https://<st>.table.core.windows.net/` | after S1, a URI selects MI. Before S1, a Key Vault-referenced connection string (test G2b only) |
-| `DigitalBrain__Integrations__orleans__Reminders` | same table URI | as above |
-| `DigitalBrain__Integrations__orleans__GrainState` | `https://<st>.blob.core.windows.net/` | as above |
+| `Orleans__ClusterId`, `Orleans__ServiceId` | `intochat-<env>` | `DigitalBrainDeployment.cs:88-89` |
+| `DigitalBrain__Integrations__orleans__Clustering` / `__Reminders` | `https://<st>.table.core.windows.net/` | S1 (URI selects MI) |
+| `DigitalBrain__Integrations__orleans__GrainState` | `https://<st>.blob.core.windows.net/` | S1 |
 | `DigitalBrain__Integrations__orleans__GrainStateContainer` | `grainstate-v1` | `OrleansModule.cs:18` |
-| `DigitalBrain__Platform__Storage__Directory` | `/data/brain/v1` (Azure Files volume `brainlog`) | `BrainStoreOptions.cs:6` |
-| `DigitalBrain__Platform__Storage__ConfiguredCustodyAcknowledged` | `true` | required in Production (`BrainStorageHosting.cs:43-44`) |
-| master key | Key Vault reference `master-key` | `MasterKey.Provision` in the manifest |
-| `AZURE_CLIENT_ID` | runtime MI client ID | `DigitalBrainDeployment.cs:85` |
-| `DigitalBrain__KeyVault__Uri` | vault URI | `:26-27,86` |
-| `ASPNETCORE_ENVIRONMENT` | `Production` in both environments. `test` is a production-shaped environment, so it gets the same startup guards | |
-| `APPLICATIONINSIGHTS_CONNECTION_STRING` / `OTEL_*` | App Insights | foundation output |
+| `DigitalBrain__Platform__Storage__Directory` | `/data/brain/v1` | `BrainStoreOptions.cs:6` |
+| `DigitalBrain__Platform__Storage__Ownership__*` | `BlobLease`, the lease container URI | S5 |
+| `DigitalBrain__Platform__Storage__ConfiguredCustodyAcknowledged` | `true` (also in G2a) | `BrainStorageHosting.cs:43-44` |
+| master key | Key Vault ref `master-key` | `MasterKey.Provision` |
+| `AZURE_CLIENT_ID`, `DigitalBrain__KeyVault__Uri` | runtime MI, vault | `DigitalBrainDeployment.cs:26-27,85-86` |
+| `ASPNETCORE_ENVIRONMENT` | `Production` in both | |
+| `DigitalBrain__Hosting__RuntimeId` (and the rest of `HostedRuntimeOptions`) | **must not be set** | It would make `HostedStorage` throw, because the Orleans GrainState is set (`HostedAuthorityHosting.cs:79-83`). `DeployRuntime` asserts its absence |
 
-Note: `Orleans__Clustering__*`, `Orleans__Reminders__*` and `Orleans__GrainStorage__*` are deliberately **not** used for the silo. The silo takes providers only from the integration (`DigitalBrainHostingExtensions.cs:82-88,99-100`). Only clients such as `DigitalBrain.Mcp` use `Orleans__Clustering__ProviderType=AzureTableStorage` (`:164-165`).
+`Orleans__Clustering__*`, `__Reminders__*` and `__GrainStorage__*` are not used for the silo, which takes providers from the integration (`DigitalBrainHostingExtensions.cs:82-88,99-100`). Only clients use `Orleans__Clustering__ProviderType=AzureTableStorage` (`:164-165`).
 
 ---
 
 ## 6. CI/CD
 
-### ADR A4. Platform deploys. Os only publishes. Test on merge, prod on release with reviewers
+### ADR A4. Platform deploys, os publishes. Test on merge, prod on release with reviewers
 
-**platform/.github/workflows:**
+**Platform workflows:**
 
 | Workflow | Trigger | Environment | Does |
 | --- | --- | --- | --- |
-| `ci.yml` (PR #2) | PR, push master | none | build, test, format |
-| `preview.yml` | PR touching `src/IntoChat.Infrastructure/**`, `src/IntoChat.DeploymentKit/**`, `Directory.Packages.props` | `test` (read-only role suffices; uses the test OIDC app) | `pulumi preview -s test --diff` and posts the summary as a PR comment. **Never previews prod from a PR.** Removes the `production` default (`preview.yml:16`) |
-| `deploy-test.yml` (new) | push to `master`, `workflow_dispatch` | `test` (no reviewers; branch policy `master` only) | Build api, jobs and distribution images, tagged `sha-<short>`, and push to ACR. Mirror os-ui and os-sandbox if A2b. Upload the portal. Run `pulumi up -s test --yes` with `IMAGE_TAG=sha-<short>`, then smoke tests. Concurrency group `deploy-test`, `cancel-in-progress: false` |
-| `deploy-prod.yml` (PR #3, amended) | `release: published`, `workflow_dispatch` with `tag` input | `production` (**required reviewers: owner**, deployment branch/tag policy `v*`, wait timer 0) | **Promote, do not rebuild.** `az acr import` the `sha-<short>` images that `test` already ran to `:<release tag>`, verifying the digest matches. Then `pulumi preview -s prod` (output in the job summary), then `pulumi up -s prod --yes`, then smoke tests. Concurrency `deploy-prod` |
-| `destroy-preview.yml` | not created | n/a | No per-PR environments. An Orleans cluster plus Postgres per PR is too costly. "PR preview" means a Pulumi diff only |
+| `ci.yml` (PR #2) | PR, push master | — | build, test, format |
+| `preview.yml` | PR on infrastructure paths | `test` | `pulumi preview -s test --diff`, posted as a PR comment. Never previews prod. Drops the `production` default (`preview.yml:16`) |
+| `deploy-test.yml` (new) | push `master`, dispatch with optional `sha` | `test` (branch `master`) | Build api, jobs, bot and distribution as `sha-<short>` into ACR, upload the portal, `pulumi up -s test`, smoke tests. Concurrency `deploy-test`, no cancel |
+| `deploy-prod.yml` (PR #3, amended) | `release: published`, dispatch with `tag` | `production` (required reviewer = owner, tags `v*`) | **Promote:** `az acr import` the `sha-<release commit>` images to `:<tag>` with a digest check, then `pulumi preview` into the summary, `pulumi up -s prod`, smoke tests |
 
-Promotion needs the release commit to have been deployed to `test`. `deploy-prod` fails if `acrintochat.azurecr.io/intochat-distribution:sha-<release commit>` is missing.
+No per-PR environments: a silo plus Postgres per PR costs too much. "PR preview" means a Pulumi diff.
 
-**os/.github/workflows:** unchanged from the deploy plan. `publish.yml` (prerelease NuGet) and `release.yml` (tag, stable NuGet plus `ghcr.io/intochat/os`, `os-ui` and `os-sandbox`, `release.yml:6,58-80`). There is no Azure step in os. One addition (os PR S3): `release.yml` ends with `gh workflow run bump-os.yml -R intochat/platform -f version=<VERSION>`, using a fine-grained token `PLATFORM_DISPATCH_TOKEN` (actions:write on platform only). Platform's `bump-os.yml` opens a PR that bumps `DigitalBrainVersion` and `intochat:osVersion` together (deploy plan D4). Merging that PR deploys to `test`.
+**Promotion precondition.** If `sha-<release commit>` is missing (its `deploy-test` was cancelled or superseded), `deploy-prod` fails with that message. The fix is to dispatch `deploy-test` with `sha=<release commit>`, wait for green, and re-run the release job.
 
-**Secrets and variables per GitHub environment (platform):**
+**os workflows:** unchanged (`publish.yml`; `release.yml` triggers on `v*` at `:6` and pushes GHCR images at `:58-80`). There is no Azure step in os. S3 adds a final step that notifies platform to open a bump PR:
+- **Preferred:** a GitHub App `intochat-release-bot` installed on `intochat/platform` with `contents:read`, `actions:write`. Its token comes from `actions/create-github-app-token`. Nothing expires.
+- **Fallback:** a fine-grained PAT `PLATFORM_DISPATCH_TOKEN` with a 90-day expiry, rotated by the owner (O12).
 
-| Name | `test` | `production` |
-| --- | --- | --- |
-| `AZURE_CLIENT_ID` (var) | test OIDC app | prod OIDC app |
-| `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` (var) | same | same |
-| `PULUMI_STACK` (var) | `test` | `prod` |
-| `PULUMI_ESC_ENV` (var) | `intochat/test` | `intochat/prod` |
-| `PULUMI_ACCESS_TOKEN` (secret) | team token, test-scoped | team token, prod-scoped |
-| `NUGET_GITHUB_TOKEN` (repo secret) | shared | shared |
+Platform's `bump-os.yml` bumps `DigitalBrainVersion` and `intochat:osVersion` together.
 
-App secrets (OpenAI, Qdrant and others) are **not** GitHub secrets. They live in ESC and then Key Vault.
+**Per GitHub environment (platform):**
+- `AZURE_CLIENT_ID` (per-environment app), `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID`.
+- `PULUMI_STACK` = `test` / `prod`. `PULUMI_ESC_ENV` = `intochat/test` / `intochat/prod`.
+- `PULUMI_ACCESS_TOKEN`, scoped per environment.
+- `NUGET_GITHUB_TOKEN` is shared.
+- App secrets live in ESC and Key Vault, not in GitHub.
 
-**Smoke tests** (`scripts/smoke.sh <env>`, run in both deploy workflows, failing the job):
-1. `curl -fsS $osUrl/health` returns 200 within 5 minutes (retry every 10 s).
-2. `curl -fsS $uiUrl/config.json`: the kernel URL equals `osUrl` (deploy plan Review Focus 3).
-3. `curl -fsS $apiUrl/health` returns 200.
-4. Orleans membership: `az storage entity query … --filter "Status eq 3"` returns `minReplicas` rows.
-5. Durability canary: the smoke endpoint writes a canary grain (`/api/diagnostics/canary`, os PR S4). On the next deploy, the read must return the previous value. The first deploy is exempt.
-6. `az containerapp revision list -n ca-intochat-<env>-os --query "[?properties.active]|length(@)"` equals 1 (Single mode).
+**Smoke tests** (`scripts/smoke.sh <env>`; each failure fails the job):
+1. `$osUrl/health` returns 200 within 5 minutes.
+2. `$uiUrl/config.json` contains the kernel URL equal to `osUrl`.
+3. `$apiUrl/health` and `$botUrl/health` return 200.
+4. Membership: Active rows (`Status eq 3`) **whose silo name matches the current revision** equal `minReplicas`, retried for 3 minutes, because during overlap the old revision's row is still present.
+5. Durability canary (S4): the value written on the previous deploy reads back.
+6. **Ownership check:** App Insights `traces | where timestamp > deployStart | where message has "BrainNotOwnedException" and customDimensions.retryExhausted == "true"` returns 0. Retried, then successful, claims are allowed.
+7. Exactly one active revision after the deploy completes.
 
 **Rollback:**
-- **App-only regression.** Re-run `deploy-prod.yml` via `workflow_dispatch` with the previous release `tag`. This is the same promotion path, so Pulumi sets the old image tag. It takes about 5 minutes and is the preferred path.
-- **Emergency, Pulumi unavailable.** `az containerapp update -n ca-intochat-prod-os -g rg-intochat-prod --image acrintochat.azurecr.io/intochat-distribution:<prev>`. This creates drift, which the next `pulumi up` reconciles. Record it in the ledger.
-- **Storage format regression.** Point `intochat:os:storageFormat` back at the previous `vN` and deploy. The old share and container are kept read-only until the owner signs off (§3.4).
-- **Infrastructure change regression.** `git revert` the Pulumi PR, merge, deploy to `test`, then cut a patch release.
-- Revisions are not used for rollback in Single mode. Inactive revisions are kept (`maxInactiveRevisions: 5`) only for diagnostics.
+- **App regression.** Dispatch `deploy-prod` with the previous `tag` (about 5 minutes).
+- **Emergency.** `az containerapp update --image …:<prev>`, logged in the ledger, then reconciled by the next `pulumi up`.
+- **Storage format.** Point `intochat:os:storageFormat` at the previous `vN`.
+- **Infrastructure.** `git revert`, deploy to test, then a patch release.
+- Inactive revisions are kept for diagnostics only (`maxInactiveRevisions: 5`).
 
 ---
 
 ## 7. Cost per environment (estimates, USD/month, polandcentral PAYG)
 
-| Resource | SKU | Test | Prod |
-| --- | --- | --- | --- |
-| ACA: os silo | Consumption, 1 vCPU / 2 GiB, always-on | 1 replica, about 35-40 (after the monthly free grant, about 30) | 2 replicas, about 75 (1 replica until G4: about 38) |
-| ACA: os-ui | Consumption 0.25 vCPU / 0.5 GiB | min 0, about 0-3 | min 1, about 9 |
-| ACA: api | Consumption 0.5 vCPU / 1 GiB | min 0, about 0-8 | min 1-3, about 20-55 |
-| ACA: jobs | Consumption 0.25 vCPU / 0.5 GiB | min 1, about 9 | min 1-2, about 9-18 |
-| ACA: sandbox session pool | custom container pool | 0 ready, about 0-5 | 1 ready, about 10-20 |
-| ACA environment + VNet | workload profiles, Consumption only | 0 | 0 |
-| Postgres Flexible | B1ms + 32 GB / B2s + 64 GB, 7-day backup | about 17 | about 33-40 |
-| Event Hubs | Basic 1 TU / Standard 1 TU | about 11 | about 22 |
-| Storage (Table, Blob, Files, `$web`) | LRS / ZRS | about 3-6 | about 8-20 |
-| Key Vault | Standard | about 1 | about 1-3 |
-| Log Analytics + App Insights | PerGB, 1 GB/day cap / 5 GB/day cap | about 0-10 | about 15-40 |
-| ACR | Basic, shared (`rg-intochat-shared`) | 5 (shared, counted once here) | 0 |
-| Qdrant | Qdrant Cloud free tier (1 GB) / paid tier | 0 | about 0-30 |
-| Front Door Standard | optional | none | off (0); about 35 + traffic if enabled |
-| Defender / private endpoints | not enabled | 0 | 0 (about 7.3 each if added later) |
-| **Total** | | **about $81-115** (inside the approved $60-120) | **about $200-330** (no Front Door, 1-2 silos) |
+Rates used: ACA Consumption active $0.000024 per vCPU-s and $0.000003 per GiB-s; idle $0.000003 per vCPU-s. A month is 2.63M s. The free grant (180k vCPU-s plus 360k GiB-s, about $5.4) applies once per subscription.
 
-Notes:
-- The Consumption free grant (180k vCPU-s and 360k GiB-s per subscription per month) applies once across both environments.
-- Retiring the old deployment saves about $30-45 per month. Moving `sv` and `LeedGenerator` removes about $37 from this subscription's bill.
-- Net subscription run-rate with `test` live and the old resources retired: about $85-120 per month.
-- Cost drift guard (O8): an Azure budget on each RG with alerts at 80% and 100% of $120 (test) and $350 (prod).
+Learn (Billing) says idle needs under 0.01 vCPU and under 1,000 B/s received, with no HTTP request in progress. An Orleans silo (membership polling, reminders), Hangfire and a Kafka consumer all poll continuously, so **active rates are assumed**. Idle figures are shown only as a floor.
+
+| Resource | SKU | Test "full" | Test L1 | Test L2 | Prod |
+| --- | --- | --- | --- | --- | --- |
+| OS silo | 1 vCPU/2 GiB always-on (prod, full); 0.5/1 (L1, L2) | 79 (idle floor 16) | 39 (idle 8) | 39 | 79 |
+| os-ui | 0.25/0.5 | 0-3 (min 0) | 0-3 | 0-3 | 20 (min 1) |
+| api | 0.5/1 | 0-8 (min 0) | 0-8 | 0-8 | 39-118 (1-3) |
+| jobs (Hangfire) | 0.25/0.5, min 1 | 20 | 20 | 20 | 20 |
+| bot (Kafka + Telegram) | 0.25/0.5, min 1 | 20 | 20 | **0 (disabled)** | 20 |
+| sandbox pool | custom container | 0-5 | 0-5 | 0-5 | 10-20 |
+| ACA free grant | | −5 | −5 | −5 | (used by test) |
+| Postgres Flexible | B1ms 32 GB / B2s 64 GB | 17 | 17 (or about 9 with stop nights and weekends) | 9 (stopped off-hours) | 33-40 |
+| Event Hubs | Standard 1 TU | 22 | 22 | **0 (disabled)** | 22 |
+| Storage (Table, Blob, lease, Files, `$web`) | LRS / ZRS | 3-6 | 3-6 | 3-6 | 8-20 |
+| Key Vault | Standard | 1 | 1 | 1 | 1-3 |
+| Log Analytics + App Insights | cap 0.5 GB/day test, 5 prod | 0-10 | 0-5 | 0-5 | 15-40 |
+| ACR Basic (shared) | | 5 | 5 | 5 | 0 |
+| Qdrant Cloud | free tier / paid | 0 | 0 | 0 | 0-30 |
+| Front Door | optional | — | — | — | 0 (35+ if on) |
+| **Total** | | **about $162-195** | **about $122-146** | **about $72-96** | **about $265-430** |
+
+**Flag for the owner: every test option except L2 is above the approved $60-120 and needs re-approval.**
+
+- **Full:** a production-shaped silo (1 vCPU), with Kafka and Bot exercised. Best signal. About $162-195.
+- **L1:** silo at 0.5 vCPU / 1 GiB (the old kernel's size) and Postgres stopped off-hours.
+  - About $114-138 with the Postgres stop, still slightly above range.
+  - Trade-off: slower silo cold start and less headroom for the sandbox and AI calls. Memory pressure is possible with large brains.
+- **L2, inside range:** L1 plus Event Hubs and Bot **deferred** in test (`eventHubs.enabled=false`, `bot.enabled=false`) and Postgres stopped off-hours.
+  - About $72-96.
+  - Trade-off: the Kafka path (api producer, bot notifications) and Telegram are untested until prod, or until Event Hubs is enabled for a test window (about $0.75 per day while on, Standard is hourly).
+  - Needs the P2 switch for Kafka-off. Contradicts "platform needs Event Hubs" for test only.
+
+**Recommendation:** L2 at G2, then enable Event Hubs and Bot in test for the release-candidate window before G5. Alternatively, the owner re-approves "full" if continuous Kafka coverage matters more than about $90 per month.
+
+Prod at 1 silo is about $265-430. The earlier $200-330 understated it in the same way.
+
+Retirement saves about $30-45 per month. The O7 moves remove about $37 per month. **The O8 budgets ($120 test, or the re-approved figure; $450 prod) are created before G2**, not in parallel.
 
 ---
 
 ## 8. Operator steps (user-only)
 
-- **O7. Move non-IntoChat resource groups** (prepared, not run). Moves need a target subscription in the same tenant. Static Web Apps and Flexible Server both support moves between subscriptions.
+- **O7. Move non-IntoChat RGs** (prepared, not run). The target subscription must be in the same tenant.
   ```bash
-  az account list -o table                                   # pick TARGET_SUB
-  az resource invoke-action --action validateMoveResources \
-    --ids "/subscriptions/2a985480-6bb9-44ff-959d-edd5efe2cdb2/resourceGroups/LeedGenerator" \
-    --request-body "{\"resources\": $(az resource list -g LeedGenerator --query '[].id' -o json), \"targetResourceGroup\": \"/subscriptions/$TARGET_SUB/resourceGroups/LeedGenerator\"}"
-  az group create -n LeedGenerator -l polandcentral --subscription "$TARGET_SUB"
-  az resource move --destination-subscription-id "$TARGET_SUB" --destination-group LeedGenerator \
-    --ids $(az resource list -g LeedGenerator --query '[].id' -o tsv)
-  # repeat for sv:
-  az group create -n sv -l polandcentral --subscription "$TARGET_SUB"
-  az resource move --destination-subscription-id "$TARGET_SUB" --destination-group sv \
-    --ids $(az resource list -g sv --query '[].id' -o tsv)
-  az group delete -n LeedGenerator --yes; az group delete -n sv --yes   # only after both are empty
+  az account list -o table                                    # choose TARGET_SUB
+  for RG in LeedGenerator sv; do
+    IDS=$(az resource list -g $RG --query '[].id' -o json)
+    az group create -n $RG -l polandcentral --subscription "$TARGET_SUB"
+    az resource invoke-action --action validateMoveResources \
+      --ids "/subscriptions/2a985480-6bb9-44ff-959d-edd5efe2cdb2/resourceGroups/$RG" \
+      --request-body "{\"resources\": $IDS, \"targetResourceGroup\": \"/subscriptions/$TARGET_SUB/resourceGroups/$RG\"}"
+    az resource move --destination-subscription-id "$TARGET_SUB" --destination-group $RG \
+      --ids $(az resource list -g $RG --query '[].id' -o tsv)
+  done
+  az group delete -n LeedGenerator --yes; az group delete -n sv --yes   # only when empty
   ```
-  Also resolve the phantom subscription `b0c622ab-…` (`az account clear`, then `az login`, or ask whoever owns that directory).
-- **O1′ (replaces deploy plan O1).**
-  - Create two Entra apps, `gh-intochat-platform-test` and `gh-intochat-platform-prod`. Add federated credentials for the subjects `repo:intochat/platform:environment:test` and `…:environment:production`.
-  - Assign the roles on the RGs listed in §4. Create `rg-intochat-shared`, `rg-intochat-test` and later `rg-intochat-prod` first, so the role scopes exist.
-  - Register the providers `Microsoft.App`, `Microsoft.DBforPostgreSQL`, `Microsoft.EventHub`, `Microsoft.OperationalInsights` and `Microsoft.ContainerRegistry`.
-- **O2′. GitHub environments in `intochat/platform`.**
-  - `test`: deployment branch `master` only.
-  - `production`: required reviewer = owner, deployment tags `v*`, "prevent self-review" off (single maintainer).
-  - Add the variables and secrets from the §6 table.
+  - `leadpostresserver` stays in northeurope after the move.
+  - **Fallback if validation rejects the Flexible Server:**
+    ```bash
+    pg_dump -Fc -h leadpostresserver.postgres.database.azure.com -U <admin> <db> > lead.dump
+    az postgres flexible-server create --subscription "$TARGET_SUB" -g LeedGenerator -n <new> -l northeurope --tier Burstable --sku-name Standard_B1ms --storage-size 32
+    pg_restore -h <new>.postgres.database.azure.com -U <admin> -d <db> lead.dump
+    ```
+    Then delete the old server.
+  - Also resolve the phantom subscription `b0c622ab-…`.
+- **O1′. Entra and RGs.**
+  - Create `rg-intochat-shared` and `rg-intochat-test` (prod later).
+  - Create the apps `gh-intochat-platform-test` and `-prod`, with federated subjects `repo:intochat/platform:environment:test` and `…:environment:production`, and the roles from §4.
+  - Register `Microsoft.App`, `Microsoft.DBforPostgreSQL`, `Microsoft.EventHub`, `Microsoft.OperationalInsights`, `Microsoft.ContainerRegistry`.
+  - Check quota: `az postgres flexible-server list-skus -l polandcentral`.
+- **O2′. GitHub environments.**
+  - `test`: branch `master`.
+  - `production`: required reviewer = owner, tags `v*`.
+  - Add the variables and secrets from §6.
 - **O5′. Pulumi Cloud.**
-  - Create stacks `intochat/intochat-infrastructure/test` (and `prod` later).
-  - Create the ESC environments `intochat/base`, `intochat/test` and `intochat/prod`. Set the secret values: OpenAI key, Qdrant URL and key, `ghcrReadToken` (fine-grained PAT, `read:packages`, 90 days), `dbAdminPassword`.
-  - Remove the old `production` stack, which has no resources (inventory §3).
-- **O8.** Create budgets and alerts per RG (§7).
-- **O9. Before retiring the old kernel** (after G3):
-  - Run `az storage blob download-batch --account-name stdbraindeve2c940 --auth-mode login -s grainstate -d ./archive/grainstate`, and the same for the other three containers. Export the tables with `az storage entity query`.
-  - Then delete `ca-digitalbrain-kernel`, `cae-digitalbrain-dev`, `intochat-ui-webapp` (SWA), `id-digitalbrain-deploy` and `workspace-intochatrgBKe4`.
-  - Delete `stdbraindeve2c940` after 30 days, then `intochat-rg` once it is empty.
-- **O10. DNS (later).** When a domain is chosen, set `intochat:domains:*` in the stack, deploy, read the `dnsRecords` output, and add the CNAME and `asuid` TXT records at the registrar. The next deploy binds the managed certificates.
+  - Create stack `test` (prod later) and ESC environments `intochat/base` and `intochat/test`.
+  - Set the secrets: OpenAI, Qdrant, `ghcrReadToken`, `dbAdminPassword`, `telegramBotToken`.
+  - Remove the empty `production` stack.
+- **O8. Budgets** per RG with alerts at 80% and 100%. **Before G2.**
+- **O9a. Count old data** (before O9).
+  ```bash
+  az role assignment create --assignee vlad@intochat.io --role "Storage Blob Data Reader" --scope $(az storage account show -n stdbraindeve2c940 --query id -o tsv)
+  for c in grainstate state digitalbrain-v2-journal digitalbrain-v2-state; do az storage blob list --account-name stdbraindeve2c940 --auth-mode login -c $c --num-results 5000 --query "[].properties.contentLength" -o tsv | awk -v c=$c '{n++;s+=$1} END {print c, n, s}'; done
+  ```
+  Record the results in the ledger. The owner decides whether anything matters.
+- **O9. Retire** (after G3, and only after O9a is recorded).
+  - `az storage blob download-batch` each container to an archive and export the tables.
+  - Delete `ca-digitalbrain-kernel`, `cae-digitalbrain-dev`, `intochat-ui-webapp`, `id-digitalbrain-deploy` and `workspace-intochatrgBKe4`.
+  - Delete the storage account after 30 days, then `intochat-rg` (westeurope metadata).
+- **O10. DNS (later).** Set `intochat:domains:*`, deploy, and add the `dnsRecords` output at the registrar.
 - **O11. Approvals.**
-  - G2: owner approves the `test` creation run (first `deploy-test` dispatch).
-  - G5: owner approves `prod` creation separately, after G4. The `production` reviewer gate then applies to every prod deploy.
+  - G0: review this document and choose test option full, L1 or L2, with a budget re-approval if not L2.
+  - G2: approve the first test run.
+  - G5: approve prod.
+- **O12. Tokens.**
+  - Create the GitHub App `intochat-release-bot` (preferred) or the PAT `PLATFORM_DISPATCH_TOKEN` (90 days).
+  - The GHCR PAT also expires in 90 days. Calendar both rotations until the os public flip.
 
 ---
 
 ## 9. Implementation PR sequence
 
-**Gate G0: owner reviews this document.** No infrastructure PR merges before G0.
+**G0: the owner reviews this document and chooses the test cost option.** Nothing merges before G0.
 
-| # | Repo | PR | Depends on | Notes |
-| --- | --- | --- | --- | --- |
-| S1 | os | Orleans integration accepts service URIs. A value starting with `https://` builds `TableServiceClient(Uri, DefaultAzureCredential)` / `BlobServiceClient(Uri, …)` in `OrleansStorageHosting.cs:63-74`. Connection strings stay supported for self-hosters. Includes unit tests | — | Removes the need for `storage-conn` |
-| S2 | os | `DigitalBrain.Deployment` accepts an existing environment, subnet, identity and storage (`DigitalBrainDeployment.cs:44-68`). Adds the Azure Files volume and mount, cpu/memory/replica parameters (`:147-149`), `additionalPortMappings` 11111/30000, Single revision mode, probes, and the `storageFormat` suffix | S1 | Ships in the next os release as a NuGet package |
-| S3 | os | `release.yml` dispatches `bump-os` to platform | — | Needs `PLATFORM_DISPATCH_TOKEN` (operator) |
-| S4 | os | Diagnostics canary and silo-identity endpoint for smoke tests and the G4 test (protected, `diagnostics` scope) | — | |
-| P0 | platform | Merge PRs #1, #4, #2, #3 and #5 per the deploy plan merge order. #3 is amended: `environment: production`, promotion instead of rebuild | deploy plan | #5 is rebased by P3 |
-| P1 | platform | `preview.yml` targets `test`. Add `deploy-test.yml`, `scripts/smoke.sh`, `bump-os.yml` | P0 | |
-| P2 | platform | `IntoChat.Infrastructure` de-TripRadar, stacks `test` and `prod`, config schema, ESC templates (§5 table) | P0 | |
-| P3 | platform | DeploymentKit: workload-profile environment, Postgres Entra, Event Hubs MI, storage shares, shared ACR, and the OS runtime via the S2 library (replacing PR #5's distribution block) | P2, os release with S1 and S2 | |
-| — | — | **Gate G1: operator steps O1′, O2′, O5′, O8 done for `test`** | | |
-| — | — | **Gate G2: "test env created". Explicitly after the owner reviews this doc (G0) and approves the first run.** G2a: first `deploy-test` with `storageMode: memory` (allowed only before S1 is released). G2b: durable Option A | P1-P3, G1 | Budget about $81-115/mo starts here |
-| — | — | **Gate G3: test live and green on smoke tests for 7 days.** Then O9 retires `ca-digitalbrain-kernel` and the old resources | G2b | |
-| — | — | **Gate G4: 2-replica silo test (§3.4) passes**, or prod is fixed at one replica, with the brain-affinity item filed for W1 | G2b | |
-| P4 | platform | `Pulumi.prod.yaml` values, Front Door toggle (off), budget outputs | G4 | |
-| — | — | **Gate G5: prod creation, a separate owner approval** (cost about $200-330/mo). First `deploy-prod` from a published release, approved in the `production` environment | P4, O1′/O2′/O5′ for prod | Later |
-| P5 | platform | After the os public flip: remove GHCR credentials and `ghcrReadToken`. After W1 Blob-BrainLog: remove the Files mount, set `allowSharedKeyAccess=false`, migrate `v1` to `v2` | W1 | |
+| # | Repo | PR | Depends on |
+| --- | --- | --- | --- |
+| S1 | os | Orleans integration accepts service URIs with `DefaultAzureCredential` (`OrleansStorageHosting.cs:63-74`). Connection strings still work | — |
+| S5 | os | BrainLog ownership seam, Blob-lease implementation, fencing, bounded claim retry, release on dispose, metrics (§3.4). `writer.lock` stays the default for local use | — |
+| S2 | os | `DeployRuntime(foundation)` with no second foundation (ADR A3), in a package free of the external `DeploymentKit` dependency. Files volume, `mountOptions`, lease container, 30000 mapping, Single mode, probes, grace period, `storageFormat`, the `RuntimeId` assertion | S1, S5 config names |
+| S3 | os | `release.yml` notifies platform via the GitHub App (or PAT) | O12 |
+| S4 | os | Diagnostics: canary, silo identity, ownership counters (protected) | — |
+| — | — | **Gate G-OS: os vX.Y released with S1, S2, S4 and S5** (NuGet plus images) | S1-S5 |
+| P0 | platform | Merge #1, #4, #2 and #3 (amended: `environment: production`, promotion). **Hold #5**; its os-ui part moves into P3 | deploy plan |
+| P1 | platform | `preview.yml` targets test. Add `deploy-test.yml`, `smoke.sh`, `bump-os.yml` | P0 |
+| P2 | platform | `IntoChat.Infrastructure` de-TripRadar, stacks, schema, ESC templates, Kafka-off switch | P0 |
+| P3 | platform | Kit: workload-profile environment, ACR admin off, Event Hubs Standard with the scoped rule, Postgres Entra, storage shares and containers, CI `$web` grant, bot, `DeployRuntime` call, os-ui from #5. Close #5 | P2, **G-OS** |
+| — | — | **G1: operator O1′, O2′, O5′ and O8 done for test** | |
+| — | — | **G-K: Kafka auth decision recorded** (ADR A5 accepted by the owner, or L2 chosen) | G0 |
+| — | — | **G2: "test env created", after G0 review and owner approval of the run.** G2a: bootstrap with `storageMode: memory` and custody acknowledged | P1-P3, G1, G-K |
+| — | — | **G2-L: BrainLog lock spike passes** (§3.4) | G2a |
+| — | — | **G2b: durable test (Option A plus S5)** | G2-L |
+| — | — | **G3: 7 days green** → O9a, then O9 (retire the old kernel) | G2b |
+| — | — | **G4: 2-replica spike** (may fail; prod stays at 1 either way) | G2b |
+| P4 | platform | `Pulumi.prod.yaml`, Front Door toggle (off), budget outputs | G2b, G2-L latency benchmark |
+| — | — | **G5: prod creation, a separate owner approval** (about $265-430/mo) | P4, prod O1′/O2′/O5′/O8 |
+| P5 | platform | After the os flip: remove GHCR credentials. After W1 A′: remove the Files mount and set `allowSharedKeyAccess=false`; migrate v1 to v2 | W1 |
+| P6 | platform | Kafka OAUTHBEARER with MI, `disableLocalAuth=true` (ADR A5 later) | W4 |
 
 ---
 
@@ -522,13 +622,13 @@ Notes:
 
 | Risk | Impact | Mitigation |
 | --- | --- | --- |
-| **Silo-to-silo networking in ACA.** Orleans needs direct replica-IP TCP on 11111. `additionalPortMappings` exposes ports through the app's internal endpoint, not per replica. Direct replica-to-replica traffic depends on the VNet-integrated workload-profile environment | A multi-silo cluster cannot form. Membership shows silos as Dead or flapping | Test 1 replica first. G4 verifies two replicas explicitly. Fallback: prod at one replica (the BrainLog single-writer model already favours it). Escalation path: AKS with `UseKubernetesHosting` if more than one silo becomes mandatory |
-| **BrainLog on a shared Files share with more than one silo.** Two silos activate grains of the same brain, and the second fails on `writer.lock` (`BrainLog.cs:55-56`) | Errors for that brain on one silo | G4 step 4. Brain-affinity placement is a W1 item. Prod stays at one replica until it is fixed |
-| **Revision switching.** In Single mode, the old and new revisions overlap for a short time with the same ClusterId. An incompatible grain interface change can break calls during the overlap. A failed new revision leaves the old one serving, which is good, but Pulumi then reports a failure | Short errors during deploy | Startup probe. Orleans version-tolerant serialization (`[Id]` attributes are already used). For breaking changes, bump `ClusterId` to `intochat-<env>-<major>` (ServiceId unchanged, so state is kept). The smoke test checks one active revision |
-| **Cold start.** os-ui and api at min 0 in test (5-20 s). The silo with BrainLog open on SMB: 20-60 s | Slow first request in test, and slow deploys | The silo is always min 1. Prod api and os-ui are min 1. The startup probe allows 5 minutes |
-| **Azure Files performance and key.** SMB latency (single-digit ms) on BrainLog `Flush(flushToDisk)` (`BrainLog.cs:287`). The account key exists for the mount | Write latency, and a key-leak surface | Transaction-optimized tier. The key exists only in the ACA environment storage definition. Rotation is documented. The W1 Blob store removes both issues |
-| **Cost drift.** Always-on replicas, Log Analytics ingestion, Event Hubs Standard, an accidental Dedicated workload profile or Front Door | Bill above approval | O8 budgets. Daily log cap. `Consumption`-only profile asserted in a DeploymentKit unit test. Front Door off by default. Monthly cost check in the ledger |
-| **Single maintainer as required reviewer** | Prod deploys are blocked while the owner is away | Accepted. `workflow_dispatch` with the same gate |
-| **Pulumi state and resources drift from `az` hotfixes** | Surprise diffs | The rollback procedure logs every manual change. `pulumi refresh` in preview |
-| **Format migration (W1)** | Data loss if done in place | Versioned containers and shares (`-v1`/`-v2`), `BrainExport` with `FormatVersion`, and the hosted journal's refusal to overwrite (`HostedAuthorityHosting.cs:80-83`). The old version stays read-only until sign-off |
-| **Phantom subscription and mixed regions** | Operator confusion | O7 cleanup. Everything new is in polandcentral with tags |
+| **Two writers on one brain** (deploy overlap, platform pre-warm, partition) | BrainLog corruption | S5 lease plus fencing. G2-L spike. Smoke step 6. `writer.lock` kept as a second guard |
+| **Silo-to-silo networking in ACA is unproven** | No multi-silo | Prod is 1 silo by design (A1b). G4 is a spike. Escalate to AKS with `UseKubernetesHosting` only if HA becomes mandatory |
+| **Revision overlap** with a shared ClusterId | Incompatible grain interfaces during overlap; up to 60-90 s retry for busy brains | Startup probe. Version-tolerant serialization (`[Id]`). Bump `ClusterId` to `intochat-<env>-<major>` on breaking changes, keeping ServiceId. Graceful 60 s drain releases leases |
+| **Cold start** | os-ui and api at min 0 in test (5-20 s). Silo 20-60 s | The silo is always on. Prod api and os-ui at min 1. The startup probe allows 5 minutes |
+| **Azure Files latency and account key** | Write latency (`Flush(flushToDisk)`, `BrainLog.cs:287`); key surface | The G2-L p95 benchmark under 20 ms gates prod. The key exists only in the environment storage definition. A′ removes it |
+| **Cost drift** | Active-rate billing for always-on apps; Event Hubs hourly; logs | Recomputed §7. O8 budgets before G2. Consumption-only asserted in a kit unit test. Log caps. Front Door off |
+| **Kafka with a SAS key** | Leaked key allows send and listen | Scoped `app-kafka` rule, Key Vault only, rotation, P6 removes it |
+| **Single maintainer as reviewer; expiring PATs** | Blocked prod deploys; broken pulls or dispatch | Accepted. GitHub App preferred. Rotation calendar (O12) |
+| **Format migration (W1)** | Data loss | Versioned `-v1`/`-v2` stores, `BrainExport` with `FormatVersion`, the hosted journal's refusal to overwrite (`HostedAuthorityHosting.cs:80-83`), old version kept read-only |
+| **Purge-protected Key Vault** | Name locked for 90 days after a delete | Naming suffix `<4>` allows recreation under a new name |
