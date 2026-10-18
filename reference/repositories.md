@@ -50,3 +50,5 @@ Paths abbreviated as “Infrastructure” start at `src/IntoChat.Server.Infrastr
 Both workflow intent and deployment tooling need reconciliation with the cloud migration. The preview workflow still invokes `dotnet publish src/IntoChat.MiniApp/IntoChat.MiniApp.csproj`, but that project file is absent from the inspected tree. Remaining directories do not constitute a buildable project. Treat this as a release-pipeline defect to verify and repair in application work, not a reason to rewrite the runtime. Do not trigger the production workflow merely to test the documentation.
 
 Related: [evidence](./evidence), [decisions](./decisions), [maintenance](./maintenance).
+
+For the 0.3.0 rename (`IntoChat.OS`, `.intochat-os/`, `IntoChatOS__`), see the [os 0.3.0 release notes](./releases/os-0.3.0).

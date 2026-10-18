@@ -1,6 +1,6 @@
 # Local operation and deployment boundaries
 
-The product entry point is `dotnet run digitalbrain.cs` from the product repository. The launcher starts the Aspire AppHost. Read the selected profile and deployment configuration before starting it; a profile's name does not certify production readiness.
+The product entry point is `dotnet run intochat-os.cs` from the product repository. The launcher starts the Aspire AppHost. Read the selected profile and deployment configuration before starting it; a profile's name does not certify production readiness.
 
 ## Current prerequisites
 
@@ -20,3 +20,5 @@ Local run mode defaults to Open authentication posture unless configured otherwi
 Customer Researcher's historical successful browser run used an authenticated desktop on the runtime machine. That does not demonstrate remote browser automation for a browser-only visitor.
 
 This product assessment did not start, stop or reconfigure the user's product runtime. See [Requirements](product/requirements.md) for deployment acceptance.
+
+Names changed in os 0.3.0: see the [release notes](./reference/releases/os-0.3.0).

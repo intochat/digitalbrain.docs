@@ -431,3 +431,4 @@ FodyWeavers.xsd
 # VitePress
 .vitepress/cache/
 .vitepress/dist/
+!/reference/releases/
