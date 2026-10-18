@@ -571,3 +571,12 @@ Blocking map: PR 0 and PR 1 can start now. PR 2 needs PR 0 and is scheduled arou
 - Figma prototype: `clients/intochat/projects/briefs/clean-architecture/figma-source/src/App.tsx` and `index.css`.
 - `intochat/os` at `bdb79fc21`: files cited inline.
 - gRPC status details and `google.rpc` error model (grpc.io, Google AIP-193); Buf breaking-change detection (buf.build docs).
+
+## Owner decisions (2026-10-18)
+
+Design approved; PR 0 and PR 1 start now.
+
+- Q1: class per screen with a state type and `[On]` handlers (design default).
+- Q2: reference devices are a mid-range laptop browser and an **iPad** (tablet is the primary product form factor). A later, glanceable form factor is expected: the assistant should be able to run as a small-screen or wearable widget (compare https://github.com/YehudaKremer/smart_watch_widget). The contract must therefore allow a compact renderer profile (reduced kind set, large touch targets, minimal first frame); budgets for it are set when that renderer is planned.
+- Q3: legacy transports are retired one release after v1 is default. The retirement release is a "pre-release cleanup" that also carries the UI refactoring for performance and the final fixes.
+- Q4: purge password/secret values already stored in brain journals, as a W1-coordinated persisted-format migration (W1 D2); tracked in the W1 PR sequence.
