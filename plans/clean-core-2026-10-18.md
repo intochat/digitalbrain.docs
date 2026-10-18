@@ -852,3 +852,7 @@ Spike item 2 passed (commit `0ff085728` on `spike/orleans-codegen-contracts`): n
 ### Added 2026-10-18 (W2 decision Q4)
 
 PR 6c (new, after 6a/6b): purge password/secret `TextFieldChanged` values already present in brain journals, as a persisted-format migration under D2 (versioned, dual-read, rollback per 4.3). W2 PR 1 stops new writes first.
+
+### As built in PR 4 (2026-10-18, deviations from 2.3)
+
+`ISignalFanout.Watch` returns void (the activation id stays on `INeuron.Watch`); `INeuronContext` has no `Brain` (neurons inject `IDigitalBrain` until 2f) and adds `Resolver` (`INeuronResolver`, including the raw-key `ResolveKey` for brain-less and endpoint grains) and `Trace` (`ITraceCarrier`); `DeactivationReason` is `DeactivationCause`; `ICallerContext`, `NeuronCall`, `INeuronCallFilter` and `ISignalJournal` arrive with the types they need (PR 7, PR 6a). PR 5 obligations: compare neutral invokable ids with the golden manifest; register `NeutralCallFilter` on silo and all clients; reject `[OneWayCall]` on methods returning a value; combine existing `[MayInterleave]` predicates; raise the Orleans response timeout to the largest `[CallTimeout]`; reminders via `Context.Timers`.
