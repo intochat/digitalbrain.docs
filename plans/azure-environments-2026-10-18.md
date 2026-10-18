@@ -632,3 +632,10 @@ Retirement saves about $30-45 per month. The O7 moves remove about $37 per month
 | **Single maintainer as reviewer; expiring PATs** | Blocked prod deploys; broken pulls or dispatch | Accepted. GitHub App preferred. Rotation calendar (O12) |
 | **Format migration (W1)** | Data loss | Versioned `-v1`/`-v2` stores, `BrainExport` with `FormatVersion`, the hosted journal's refusal to overwrite (`HostedAuthorityHosting.cs:80-83`), old version kept read-only |
 | **Purge-protected Key Vault** | Name locked for 90 days after a delete | Naming suffix `<4>` allows recreation under a new name |
+
+## Owner decisions (2026-10-18)
+
+- G0: test option **L2** chosen (~$72–96/mo). Budget stays at the approved $120.
+- G-K: ADR A5 accepted (Kafka SASL PLAIN with a send/listen-only key in Key Vault; OAUTHBEARER later).
+- Implementation PRs may start; no Azure resource is created until the owner approves the run (G2).
+- O8 must include a scheduled stop/start job for the test Postgres server (Azure restarts stopped Flexible Servers after 7 days).
