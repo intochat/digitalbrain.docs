@@ -848,3 +848,7 @@ Spike item 2 passed (commit `0ff085728` on `spike/orleans-codegen-contracts`): n
 
 - Design approved. PRs 1, 2a and 3 start in parallel; W2 gRPC audit starts.
 - Fixtures come from a reproducible build of `bdb79fc21` with the checked-in test seal key only; no export from the live hosted kernel.
+
+### Added 2026-10-18 (W2 decision Q4)
+
+PR 6c (new, after 6a/6b): purge password/secret `TextFieldChanged` values already present in brain journals, as a persisted-format migration under D2 (versioned, dual-read, rollback per 4.3). W2 PR 1 stops new writes first.
