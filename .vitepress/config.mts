@@ -30,6 +30,7 @@ export default defineConfig({
       { text: 'Concepts', link: '/concepts' },
       { text: 'Architecture', link: '/architecture' },
       { text: 'Modules', link: '/modules' },
+      { text: 'Write a module', link: '/write-a-module' },
       { text: 'Contributing', link: '/contributing' },
       {
         text: 'Reference',
@@ -46,6 +47,7 @@ export default defineConfig({
       { text: 'Concepts', link: '/concepts' },
       { text: 'Architecture', link: '/architecture' },
       { text: 'Modules', link: '/modules' },
+      { text: 'Write a module', link: '/write-a-module' },
       { text: 'Contributing', link: '/contributing' },
       {
         text: 'Reference',

@@ -70,4 +70,4 @@ Local run mode defaults to the Open authentication posture, which accepts only l
 
 Upgrading from a build before 0.3.0? See the [0.3.0 release notes](./reference/releases/os-0.3.0).
 
-Next: read [Concepts](./concepts) for the vocabulary and [Architecture](./architecture) for how the pieces fit.
+Next: write a module with [Write a module](./write-a-module), then read [Concepts](./concepts) for the vocabulary and [Architecture](./architecture) for how the pieces fit.
