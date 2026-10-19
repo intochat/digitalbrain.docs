@@ -57,7 +57,7 @@ Outside Development, the server, MCP and AppHost processes refuse to start when 
 
 ## Neutral defaults
 
-Branded identity defaults are removed from os. Distributions such as IntoChat set their own values through configuration.
+Branded identity defaults are removed from os. Distributions set their own values through configuration.
 
 | Setting | Default in 0.3.0 | Configuration key |
 | --- | --- | --- |

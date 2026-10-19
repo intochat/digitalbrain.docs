@@ -3,7 +3,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const root = path.resolve('.vitepress/dist');
-const base = '/digitalbrain.docs/';
+const base = '/';
 const pages = [];
 async function collect(directory) {
   for (const item of await readdir(directory, { withFileTypes: true })) {
@@ -54,15 +54,20 @@ for (const [file, source] of html) {
 }
 const home = html.get(path.join(root, 'index.html'));
 assert.ok(home, 'Built homepage exists');
-assert.equal((home.match(/<section\b/g) || []).length, 4, 'Exactly four presentation sections');
-for (const id of ['vision', 'ecosystem', 'priorities', 'readiness'])
-  assert.ok(home.includes(`id="${id}"`), `Stable ${id} anchor`);
-for (const route of ['vision/index.html', 'roadmap/index.html', 'readiness/index.html'])
+assert.ok(home.includes('Get started'), 'Homepage has the Get started action');
+for (const route of [
+  'getting-started.html',
+  'concepts.html',
+  'architecture.html',
+  'modules.html',
+  'contributing.html',
+  '404.html',
+])
   assert.ok(html.has(path.join(root, route)), `Destination ${route} exists`);
 if (errors.length) {
   console.error(errors.join('\n'));
   process.exitCode = 1;
 } else
   console.log(
-    `PASS: ${pages.length} HTML pages; ${checked} internal links/fragments; four homepage sections and three primary destinations.`,
+    `PASS: ${pages.length} HTML pages; ${checked} internal links/fragments; homepage and primary pages present.`,
   );

@@ -1,0 +1,10 @@
+{
+  "trailingSlash": "never",
+  "navigationFallback": {
+    "rewrite": "/404.html",
+    "exclude": ["/assets/*", "/*.{css,js,svg,png,ico,json,woff,woff2}"]
+  },
+  "responseOverrides": {
+    "404": { "rewrite": "/404.html", "statusCode": 404 }
+  }
+}
