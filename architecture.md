@@ -1,51 +1,69 @@
-# Architecture and product complexity
+# How IntoChat OS is built
 
-DigitalBrain has a reusable foundation for the three requested product pillars. Most remaining complexity sits at the boundaries: intent to behavior, behavior to presentation, personal ownership to sharing, internal events to external effects, and local operation to public deployment.
+IntoChat OS is a .NET 11 kernel on Orleans. The kernel hosts modules, modules supply capabilities, and apps run on top as compiled behaviors. See [Concepts](./concepts) for the vocabulary.
 
-## Current system
+```mermaid
+flowchart LR
+  Shell[Renderers: Flutter shell, web image] --> UI[UI protocol]
+  UI --> Kernel
+  MCP[MCP front] --> Kernel
+  subgraph Kernel[Kernel: Orleans silo]
+    Neurons[Neurons / grains]
+    Apps[Apps: compiled behaviors]
+  end
+  Modules[Modules] --> Kernel
+  Kernel --> Sandbox[C# sandbox]
+  Kernel --> Store[(Brain journal)]
+```
 
-- **Neuron:** addressable state and typed operations.
-- **Signal:** typed event with stamped provenance.
-- **Behavior:** compiled C# reacting to signals.
-- **Connector:** bridge to an external service, device or user interface.
-- **Brain:** identity and ownership scope; circles are shared brains.
-- **App:** specification, manifest, program, configuration, presentation, version history and release origin.
+## Kernel and OsCatalog
 
-The vocabulary lives in `src/DigitalBrain`, authoring/runtime abstractions in Framework, and implementation of platform authorities in Platform. OsCatalog composes modules. First-party apps live under `features/os` and `features/intochat`.
+The kernel host is `IntoChat.OS.Kernel`. `OsCatalog` is the single place where the module composition is named: it lists the modules, and every host of the OS registers modules through it. A distribution is a diff against this composition, not a copy of it. `AddOperatingSystem` registers the modules plus the shipped OS apps.
 
-AppHost runs one authoritative OS runtime and a separate MCP client host. Devices are connectors. RunProfile.Cloud selects cloud AI configuration; it does not turn the deployment into a distributed social service. Historical federation/mesh designs are not the current architecture.
+An Aspire AppHost (`IntoChat.OS.AppHost`) runs one authoritative OS runtime and a separate MCP client host. Devices are connectors.
 
-## Main sources of complexity
+## Modules
 
-| Boundary | Why it is difficult | Recommended direction |
-| --- | --- | --- |
-| User intention to code | A readable specification does not guarantee complete or correct reactions | Structured acceptance criteria and supported capability catalog |
-| Code to visible app | Generator guidance, typed UI records, app presentations and Flutter rendering can drift | One versioned presentation contract and examples derived from it |
-| Replay and effects | Behaviors restart and signals can repeat; external writes may succeed before acknowledgement | Durable receipts, explicit uncertainty and safe retry rules |
-| Individual to group | Personal accounts, principals, brains, circle membership and connection ownership differ | Explicit audience and authority in every sharing action |
-| Release to installed copy | Exact release, settings, edits, data and updates have different lifecycles | One understandable install/update/fork model |
-| Provider abstraction | Platforms differ in auth, delivery, actions and quotas | Thin provider-specific connectors over shared lifecycle and policy |
-| Local to public use | Secure origins, storage/key custody and browser/device attachment become deployment concerns | Separate local product acceptance from hosted release acceptance |
-| Product breadth | Many modules and apps exist, but each adds an operational surface | Capability status catalog; unsupported/unconfigured should be visible |
-| Documentation drift | Old plans and agent prompts coexist with newer runtime contracts | Current handbook with dated evidence and archived history |
+A module is a self-contained capability family, shipped as up to three projects: `Contracts` (the public types other code may depend on), the implementation, and an `Aspire.Hosting` project that adds the containers and parameters the module needs. See [Modules](./modules).
 
-## Reuse versus new work
+## Neurons as grains
 
-**Reuse:** typed contracts, identity and membership, connection storage, app lifecycle, compiler, runtime assignment, UI primitives, immutable publication references, and installation origin.
+Neurons are Orleans grains. Each has typed operations and persisted state, and the kernel stamps provenance on every signal so authority is never derived from settings. Persisted state uses concrete arrays, and type aliases are brand-neutral so stored identities survive renames.
 
-**Extend:** presentation authoring, behavioral acceptance, interrupted-build recovery, social audience/lifecycle UX, event ingestion and write receipts for real social providers, and deployment acceptance.
+## Apps as compiled behaviors
 
-**Avoid without a demonstrated need:** a new lexer, a second app runtime, a separate social identity model, or a distributed mesh. None is a prerequisite for resolving the observed product gaps.
+An app is a specification and a manifest plus behaviors compiled from C#. The compiler checks the code, the runtime assigns the behaviors, and the app's presentation describes its UI. First-party apps live under `features/os` in the repository.
 
-## Contract ownership
+## C# sandbox
 
-| Contract | Product responsibility | Technical responsibility |
-| --- | --- | --- |
-| App specification | What the user gets and how success is observed | Authoring schema and validation |
-| Presentation | Required screens, states and interactions | Presentation records and renderer compatibility |
-| Social audience | Who can see or act, and what removal means | Membership checks and publication guards |
-| External action | What authority the user grants | Provider auth, receipts, retry and revocation |
-| Release | What the recipient installs and trusts | Digest, immutable bundle, origin and configuration isolation |
-| Readiness | Which claims may be advertised | Evidence attached to exact build and environment |
+Script execution and generated code run in the separate `os-sandbox` image, not in the kernel process. The CSharp module drives it.
 
-These are responsibilities, not proposed new services. Assign people before scheduling the delivery plan.
+## UI protocol
+
+The kernel speaks a renderer-agnostic UI protocol. The Flutter shell (desktop) and the `os-ui` web image are two renderers of the same protocol. C# wire records and their Dart mirrors are kept aligned.
+
+## Storage
+
+Locally, each brain has an encrypted journal under the workdir. In Azure deployments, grain state and data protection keys live in Azure storage. Optional modules add Postgres, Qdrant, ClickHouse or Supabase.
+
+## Deployment
+
+Tagging a release publishes `IntoChat.OS.*` NuGet packages and three images:
+
+| Image | Contents |
+| --- | --- |
+| `ghcr.io/intochat/os` | The kernel |
+| `ghcr.io/intochat/os-ui` | The Flutter web shell served by nginx |
+| `ghcr.io/intochat/os-sandbox` | The C# sandbox |
+
+The OS also ships an `install` command that provisions Azure through the Azure module, so you can host your own instance. A hosted IntoChat service exists separately.
+
+## Design boundaries
+
+| Boundary | Rule |
+| --- | --- |
+| Behavior and presentation | Typed UI records, app presentations and the Flutter mirrors change together |
+| Replay and effects | Behaviors restart and signals can repeat; design external writes to be idempotent |
+| Personal and shared | A brain owns its state; sharing goes through circles with explicit membership |
+| Release and installation | A publication is immutable; an installation has its own state and configuration |
+| Persisted formats | Never assume stored data is disposable; coordinate format changes explicitly |

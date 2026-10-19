@@ -1,21 +1,48 @@
-# Capability inventory
+# Modules
 
-OsCatalog is the current composition authority. A module in this list establishes a registered capability family, not a verified customer workflow.
+A module is the unit of capability in IntoChat OS. It registers neurons, contracts, configuration and, when needed, infrastructure into the kernel.
 
 ## Registered modules
 
-Orleans, AI, ArtCraft, ClickHouse, Apps, Flutter, Gmail, Aspire, CSharp, GitHub, Playwright, Windows, Postgres, Qdrant, Salesforce, Supabase, Time, Tools, MCP, Circles, and Flame.
+`OsCatalog` in `src/IntoChat.OS.Kernel` registers these modules:
 
-Monnet, Equifax, RiskSeal and Twilio remain in source but are commented out of the inspected production catalog. OsCatalog.Generated returns an empty list. There is no registered external social-network provider in this composition.
+| Area | Modules |
+| --- | --- |
+| Runtime | Orleans, Aspire, Azure, MCP |
+| AI and apps | AI, Apps, Circles, Flame, Tools, ArtCraft |
+| Code and automation | CSharp, GitHub, Playwright |
+| Data | Postgres, Qdrant, ClickHouse, Supabase |
+| Services | Gmail, Salesforce, Time |
+| Shell | Flutter |
 
-## Shipped app declarations
+A Windows module for desktop automation is available to hosts on Windows through `WithWindowsEdge()`. Modules that need a container (Postgres, ClickHouse, Supabase, Qdrant, ArtCraft) are excluded from the in-process test composition.
 
-The inspected features tree contains declarations for BrainView, Calculator, Circle, CircleRoom, DataVisualizer, Engineer, Files, FilmCraft, Friends, Ino, Memory, PhotoCraft, Router, SelfImprove, Settings, Usage, Workspace, CustomerResearcher, SvLoans, and WordCount.
+## Shipped apps
 
-A declaration is an inventory item. Whether it is installed by default, configured, supported in a particular profile or ready for release must be established separately.
+First-party apps live under `features/os`: BrainView, Calculator, Circle, CircleRoom, DataVisualizer, Engineer, Files, FilmCraft, Friends, Ino, Memory, PhotoCraft, Router, SelfImprove, Settings, Usage and Workspace.
 
-## Capability statuses to expose
+## Add a module
 
-Use a consistent product status for each capability: available, requires connection, unavailable in this deployment, experimental, or unsupported. Creator should use the same catalog as the user-facing connection and feature screens.
+Use `src/IntoChat.OS.Modules/Microsoft/GitHub` as the model. Each module is a folder of projects:
 
-See [Social assessment](assessment/social-networks.md) for the distinction between internal social features and real provider integrations.
+```text
+GitHub/
+  IntoChat.OS.Modules.Microsoft.GitHub/                 implementation
+  IntoChat.OS.Modules.Microsoft.GitHub.Contracts/       public types
+  IntoChat.OS.Modules.Microsoft.GitHub.Aspire.Hosting/  containers and parameters
+  tests/                                                 *.Tests.Hosting, *.Tests.Integration
+```
+
+1. Create the implementation and `Contracts` projects. Other modules depend only on `Contracts`.
+2. Declare the module class with a stable id and an options type:
+
+   ```csharp
+   public sealed class GitHubModule() : Module<GitHubModuleOptions>(new ModuleId("github"))
+   ```
+
+3. Bind options to the section from `IntoChatOSConfiguration.ModuleOptionsSection(new ModuleId("github"))`.
+4. If the module needs infrastructure, add the `Aspire.Hosting` project and wire it in.
+5. Add the module to `OsCatalog` (or a distribution's own composition).
+6. Add tests with the shared harness; see [Testing](./reference/testing).
+
+Warnings are errors, nullable is enabled and package versions are central in `Directory.Packages.props`. For the full rules, see [Contributing](./contributing).
