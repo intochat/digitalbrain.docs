@@ -2,6 +2,8 @@
 
 IntoChat OS is open source under the MIT license. Code contributions go to [intochat/os](https://github.com/intochat/os); contributions to these docs go to this repository.
 
+The full contribution rules are in [CONTRIBUTING.md](https://github.com/intochat/os/blob/master/CONTRIBUTING.md) and the license text is in [LICENSE](https://github.com/intochat/os/blob/master/LICENSE) (MIT).
+
 ## Workflow
 
 1. Fork the repository and branch from `master`.
@@ -14,6 +16,16 @@ IntoChat OS is open source under the MIT license. Code contributions go to [into
 - Run tests per project with `dotnet test`. Test projects are split by suffix: `*.Tests.Unit`, `*.Tests.Integration`, `*.Tests.Hosting`, `*.Tests.E2E`. See [Testing](./reference/testing).
 - Use the shared module-owned test harness instead of private fixtures.
 - For runtime changes, check observed behavior and telemetry as well as automated tests.
+
+Three helper commands keep the repository consistent after you add or change a module:
+
+```sh
+dotnet run scripts/sync-solution.cs
+pwsh scripts/capture-all.ps1
+dotnet run scripts/module-readmes.cs
+```
+
+New to modules? Follow [Write a module](./write-a-module).
 
 ## Coding rules
 

@@ -60,6 +60,7 @@ for (const route of [
   'concepts.html',
   'architecture.html',
   'modules.html',
+  'write-a-module.html',
   'contributing.html',
   '404.html',
 ])
