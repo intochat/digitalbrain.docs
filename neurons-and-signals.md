@@ -34,3 +34,14 @@ public sealed class CounterNeuron : Neuron<CounterState>, ICounter
 ## Atomic State + Signal Journal
 
 Calling `await Save(next, signal)` writes both the new `TState` and the emitted `Signal` in a single atomic journal commit. Subscribers connected via a `Synapse` receive each signal in sequence order with cursor-based deduplication.
+
+## Canonical `neuron://` URI Addressing & Scoped Surface Streams
+
+Every `NeuronId(BrainId, Type, Key)` maps to a canonical distributed URI:
+
+```text
+neuron://{brain}/{module}.{neuron}/{key}
+```
+
+- **Distributed Files (`storage@1`)**: Hybrid cloud and local storage items resolve to canonical URIs such as `neuron://owner/drive.files/projects/context.md` and `neuron://owner/computer.files/notes.txt`.
+- **Scoped UI Sub-Streams**: Inline LFP cards and sandboxed applets append a `#nodeKey` fragment (`neuron://local/apps/ino#card-1`) so individual UI components stream delta updates independently without re-rendering the parent surface.
