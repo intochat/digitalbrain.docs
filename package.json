@@ -1,0 +1,25 @@
+{
+  "name": "digitalbrain-docs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vitepress dev --host 127.0.0.1",
+    "build": "vitepress build",
+    "preview": "vitepress preview --host 127.0.0.1",
+    "typecheck": "vue-tsc --noEmit",
+    "lint": "prettier --check .vitepress/theme .vitepress/config.mts .vitepress/outline-guard.mjs tsconfig.json scripts",
+    "format": "prettier --write .vitepress/theme .vitepress/config.mts .vitepress/outline-guard.mjs tsconfig.json scripts",
+    "check:links": "node scripts/check-site.mjs",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "devDependencies": {
+    "mermaid": "^12.2.0",
+    "prettier": "^3.9.10",
+    "typescript": "^5.9.3",
+    "vitepress": "^1.6.4",
+    "vue-tsc": "^3.3.13"
+  },
+  "overrides": {
+    "vite": "^6.4.4"
+  }
+}
