@@ -28,3 +28,9 @@ public sealed class ElonTrackerApp : App<ElonTrackerState>
         new Collection(State.Posts.Select(p => new Entry(p.Id, p.Author, p.Text)).ToArray()));
 }
 ```
+
+## Rich Declarative UI Nodes (`UI.WebBrowser` & `UI.BrainScene`)
+
+`DigitalBrain.UI` provides static `UI` and `Ui` builders for rich interactive surfaces:
+- **`UI.WebBrowser(url, title, key, height, executionMode)` (`WebBrowserNode`)**: Embeds interactive WASM/Web studios (e.g., `PhotoCraft` at `http://localhost:18082` and `FilmCraft` at `http://localhost:18083`) with execution-mode badges (`wasm-ui`, `mcp`, `native-linux`).
+- **`UI.BrainScene(nodes, edges, selectedId, key, pauseRotation, zoomTargetId, targetZoom)` (`BrainSceneNode`)**: Renders the interactive 3D neuron and synapse constellation with camera controls that pause orbital rotation and smoothly zoom to a selected or newly created app node.
