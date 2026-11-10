@@ -188,6 +188,7 @@ details.review summary { cursor: pointer; font-weight: 600; color: var(--ink-2);
     <li><a href="#decision">The decision</a></li>
     <li><a href="#contexts">Context map</a></li>
     <li><a href="#order">Order of work</a></li>
+    <li><a href="#generated">Generated code</a></li>
     <li><a href="#proposals">Proposals</a><ol class="plain sub"><li><a href="#R01"><span>R01</span> Delete every type with no production reference</a></li><li><a href="#R02"><span>R02</span> Write five pure kernel rules once in the core</a></li><li><a href="#R03"><span>R03</span> Delete the two-phase gate; caps become policy reservations</a></li><li><a href="#R04"><span>R04</span> Give the write protocol one home in the core</a></li><li><a href="#R05"><span>R05</span> Write subscriptions and delivery once, in the journal</a></li><li><a href="#R06"><span>R06</span> Resolve every call from one catalog built at registration</a></li><li><a href="#R07"><span>R07</span> Make one Access context with an unforgeable Caller</a></li><li><a href="#R08"><span>R08</span> Split StateNeuron into pure machine, one entry per turn</a></li><li><a href="#R09"><span>R09</span> Re-cut the core by context and split INeuronContext</a></li><li><a href="#R10"><span>R10</span> Make the app a neuron: Screen&lt;TState&gt;, delete the host</a></li><li><a href="#R11"><span>R11</span> Give Operation, Approval and Flow their lifecycles in core</a></li><li><a href="#R12"><span>R12</span> Model identity and connections as right-sized aggregates</a></li><li><a href="#R13"><span>R13</span> Make unit deployment a durable aggregate with a tenant-free loader</a></li><li><a href="#R14"><span>R14</span> Name the simulator; test adapters once, not hosts twice</a></li></ol></li>
     <li><a href="#defects">Defects found</a></li>
     <li><a href="#decisions">Your decisions</a></li>
@@ -348,6 +349,134 @@ details.review summary { cursor: pointer; font-weight: 600; color: var(--ink-2);
   </ol>
   <p>The second wave has no fixed order. <a href="#R09">R09</a> (namespaces and glossary), <a href="#R10">R10</a> (App), <a href="#R11">R11</a> (Work), <a href="#R12">R12</a> (Identity and Connections) and <a href="#R13">R13</a> (unit deployment) each stand alone once the kernel wave has landed.</p>
 </section>
+
+<section class="sec" id="generated">
+  <p class="eyebrow">Added after the audit · 10 November</p>
+  <h2>Generated code decides, the kernel does</h2>
+  <p class="intro">The audit looked at the kernel from the inside. This section looks at it from the side of the person who says one sentence to Ino. It was checked against both repositories by a second set of readers and has its own design note and two plans.</p>
+
+  <div class="two">
+    <div>
+      <h4>The same finding from the author's side</h4>
+      <p>Every "when this arrives, do that" has three parts: <strong>when</strong> (a signal), <strong>remember</strong> (the state record) and <strong>do</strong> (reach out and act). A generated unit has the first two as real things. "Do" is whatever the code does while it runs: a reaction calls a slot and awaits the network inside its own turn.</p>
+      <p>Because generated code can act, everything that makes acting safe is wrapped around all of it. The kernel owns neither the write nor the doing.</p>
+    </div>
+    <div>
+      <h4>What acting inside the turn costs today <span class="unit">verified by reading</span></h4>
+      <ul>
+        <li>A reaction has 5 seconds, or 30 with a slot. The timeout ends the wait and not the work.</li>
+        <li>A failed slot call leaves state and cursor unchanged and is retried forever with no backoff. It blocks every later signal for that unit.</li>
+        <li>The journal records what arrived and what was saved, never what the world answered. A run cannot be replayed.</li>
+        <li>The allow-list has to rule on tasks, awaits and cancellation member by member.</li>
+      </ul>
+    </div>
+  </div>
+
+  <h3>Where generated code lives today</h3>
+  <div class="scroll"><table class="wide">
+    <thead><tr><th>Home</th><th>What runs there</th><th>State today</th></tr></thead>
+    <tbody>
+      <tr><td><strong>Inside the brain, as a unit</strong></td><td>A state record plus small functions, compiled at run time, checked against an allow-list, loaded into the silo</td><td>The only live home for generated code. 10 shipped units; 5 of them poll over HTTP through a slot.</td></tr>
+      <tr><td><strong>Separate process through the client</strong></td><td>Scripts that connect to the cluster from outside</td><td>Dead. os removed this lane on 8 November; nothing in production calls it.</td></tr>
+      <tr><td><strong>App classes</strong></td><td>The 30 first-party apps</td><td>Written by hand and compiled into os. Not generated at run time.</td></tr>
+      <tr><td><strong>Flows</strong></td><td>Multi-step processes</td><td>Written by hand, 6 in os.</td></tr>
+    </tbody>
+  </table></div>
+  <p>A job and a standing app are the same thing. "For each of 1,000 files" and "for each new post" both mean: something arrives, do one thing, update the state, show a tile. One home is enough.</p>
+
+  <h3>The model</h3>
+  <p>A reaction returns data: the next state and a list of things it asks for. The kernel records the asks with the state in one journal entry, carries them out outside the unit's turn, and each answer comes back as an ordinary signal.</p>
+  <div class="pair">
+    <figure class="code before"><figcaption><span class="lab">Today</span><span class="file">os/src/IntoChat.OS.Apps/Units/watch.x.elonmusk/XWatch.cs:20-30</span></figcaption><pre><code class="language-csharp">[Synapse(typeof(Tick), "watch.x.elonmusk", Every = "every 6m")]
+public static async Task&lt;Reaction&lt;Watch&gt;&gt; Poll(Tick tick, Watch watch, [Slot] IHttpRead x, CancellationToken ct)
+{
+    var feed = await x.GetJson("https://api.x.com/2/users/elonmusk/mentions", ct);
+    var posts = feed.TryGetProperty("data", out var d) &amp;&amp; d.ValueKind == JsonValueKind.Array ? d : default;
+    var fresh = posts.ValueKind == JsonValueKind.Array ? posts.GetArrayLength() : 0;
+    var latest = fresh &gt; 0 &amp;&amp; posts[0].TryGetProperty("text", out var t) &amp;&amp; t.ValueKind == JsonValueKind.String
+        ? t.GetString() ?? watch.Latest
+        : watch.Latest;
+    return Reaction&lt;Watch&gt;.Of(watch with { Unseen = watch.Unseen + fresh, Latest = latest }, new Polled(fresh));
+}</code></pre></figure>
+    <figure class="code after"><figcaption><span class="lab">Target</span><span class="file">the same unit in the ask form (types from the design note)</span></figcaption><pre><code class="language-csharp">[Synapse(typeof(Tick), "watch.x.elonmusk", Every = "every 6m")]
+public static Reaction&lt;Watch&gt; Poll(Tick tick, Watch watch, [Slot] Asks&lt;IHttpRead&gt; x) =&gt;
+    Reaction&lt;Watch&gt;.Of(watch)
+        .Ask(x.GetJson("https://api.x.com/2/users/elonmusk/mentions", key: "feed"));
+
+[Synapse(typeof(Answered), "watch.x.elonmusk")]
+public static Reaction&lt;Watch&gt; Got(Answered answered, Answer answer, Watch watch)
+{
+    if (!answer.Ok) { return Reaction&lt;Watch&gt;.Of(watch); }   // refused or failed: nothing changes
+    var fresh = CountAbove(answer.Result, watch.LastId);   // only posts newer than LastId
+    return Reaction&lt;Watch&gt;.Of(
+        watch with { Unseen = watch.Unseen + fresh, LastId = Newest(answer.Result, watch.LastId) },
+        new Polled(fresh));
+}</code></pre></figure>
+  </div>
+  <p class="note">The "today" side is the shipped unit, verbatim. It awaits the network inside its turn, and <code>posts.GetArrayLength()</code> adds the whole feed on every poll: the double count. <code>Asks&lt;IHttpRead&gt;</code> is a value that names a slot: it can build an ask and has no method that performs anything. The answer arrives as the signal <code>unit.answered</code>, accepted only when it was published by that unit's own asks neuron. The unit keeps no "waiting" flag: when a poll is still open and the next tick asks with the same key, the kernel refuses the second ask and the unit ignores that answer. <code>CountAbove</code> and <code>Newest</code> are two small pure helpers the unit would also contain.</p>
+
+  <div class="two">
+    <div>
+      <h4>What that buys</h4>
+      <ul>
+        <li><strong>Security</strong> is one question in one place: may this app ask for this? The answer is the consent the person already gave at install.</li>
+        <li><strong>Traceability</strong> is complete: every answer from the world is in the journal.</li>
+        <li><strong>Stability:</strong> generated code cannot hang on the network, because it never touches it. Retry, backoff and limits live in one executor.</li>
+        <li><strong>A job is the same code:</strong> list a folder, ask once per file, count the answers. Resume after a restart comes from the journal.</li>
+        <li><strong>Checking after deploy</strong> becomes possible, because a run can be replayed.</li>
+      </ul>
+    </div>
+    <div>
+      <h4>Checked against the code: holds, with six changes to the first sketch</h4>
+      <ul>
+        <li>A slot handle (<code>[Slot] Asks&lt;T&gt;</code>) in place of a static call, so consent and binding stay as they are.</li>
+        <li>One answer signal checked by publisher, since a view button can emit any alias today.</li>
+        <li>Answers delivered in groups and folded by the kernel into one save.</li>
+        <li>Retry only for asks marked repeatable. An HTTP read is; a command is not unless the unit says so.</li>
+        <li>A write-once store per batch, so 1,000 asks do not sit in the unit's state.</li>
+        <li>Approval per batch is left out of the first slice; install consent covers asks.</li>
+      </ul>
+      <p>The cost that cannot be removed: one linear <code>await</code> becomes two or three small reactions matched by a key. That is awkward for a person and easy for Ino, and the simulator must script late, failed and out-of-order answers.</p>
+    </div>
+  </div>
+
+  <h3>What the check found in os</h3>
+  <div class="callout">
+    <p><strong>A 1,000-file PhotoCraft job would report 1,000 successes today and produce no files.</strong> PhotoCraft's "native-linux" mode is simulated: the engine picks a command by substring matching, formats a <code>photocraft-cli</code> string it never runs, and still returns "Executed". Only MCP mode does real work, and it swallows its errors. The MCP container has its own volume and one shared session; nothing moves file bytes in or out.</p>
+  </div>
+  <ul>
+    <li><strong>The double count is taught in 14 places:</strong> the shipped X watch and WebWatch (code, spec, scenarios), both prompt examples, a kernel fixture and its fact, an end-to-end fact that asserts "11", the run note and a docs sample. One author wrote all of them, so nothing disagreed.</li>
+    <li><strong>The <code>tool</code> slot is taught to the model and cannot bind in production.</strong> Nothing provides it; a unit authored with it waits forever on deploy.</li>
+    <li><strong>A unit cannot ask for storage.</strong> Validation accepts only <code>http</code> and <code>tool</code>.</li>
+    <li><strong>The person approves what an app may reach, never what it does.</strong> "Change it" overwrites the scenarios, so earlier ones are not kept.</li>
+    <li><strong>After deploy nothing watches.</strong> A failed reaction is a warning log; Ino has no contract to read a unit's failures.</li>
+    <li><strong>The path from one sentence to a live unit has never run end to end.</strong> The run note says "Not yet run live."</li>
+  </ul>
+
+  <h3>Accordant: take the idea, not the package</h3>
+  <p>Microsoft Accordant checks a messy real system against a small pure model. A generated unit already is the small pure model, so a second full model written by the same author repeats the same mistakes. Accordant has no notion of time, of a unit emitting its own signals, or of a view; its state generator rejects C# records; it is version 0.1.6 with one main maintainer. Worth borrowing later: kept traces as a regression set, checking a recorded journal against stated rules, and a model of the world behind a slot. Those need a complete journal first, which the ask model provides.</p>
+
+  <h3>The plans</h3>
+  <p>The design note and both plans are in the handbook repository under <code>intochat.docs/assessment/plans/</code>: <code>2026-11-10-units-decide-kernel-does-design.md</code>, <code>2026-11-10-digitalbrain-asks-plan.md</code> and <code>2026-11-10-os-asks-plan.md</code>. Each plan was written against the code and corrected by a reviewer. Nothing in them has been built or run.</p>
+  <div class="scroll"><table class="wide">
+    <thead><tr><th>Repository</th><th>Phase</th><th>What ships</th><th>Tasks</th><th>Effort (estimate)</th></tr></thead>
+    <tbody>
+      <tr><td rowspan="4"><strong>digitalbrain</strong></td><td>A. Small fixes</td><td>The kernel fixture counts a post once. A scripted world behind a slot, with failing answers. Scenario steps <code>ExpectView</code>, <code>ExpectNoSignal</code>, <code>ExpectFailure</code>. A durable <code>synapse.failed</code> on both runtimes, with "record once, then move on". Local build <code>0.18.0-units.8</code>.</td><td>7</td><td>3 to 4 days</td></tr>
+      <tr><td>B. Asks, the data side</td><td><code>Ask</code>, <code>Asks&lt;T&gt;</code>, <code>Answer</code>, <code>Answered</code>, <code>AskLimits</code>; <code>Reaction.Ask</code> and <code>AskEach</code>; shape rules with the analyzer mirror; <code>HttpAsks</code> and <code>ToolAsks</code>. An ask-form unit compiles and fails loudly when run.</td><td>4</td><td>2 to 3 days</td></tr>
+      <tr><td>C. Asks, the kernel side</td><td>State and <code>unit.asked</code> in one save. Publisher check and per-answer fold. The executor as two core neurons: limits, a window of 4, retry, grouping, expiry, resume. Hosting on the simulator and the silo. Late, never, failed and out-of-order answers in the simulator.</td><td>8</td><td>6 to 8 days</td></tr>
+      <tr><td>D. Coexistence and release</td><td><code>UnitIo</code> (<code>Both</code> by default, <code>AsksOnly</code> refuses a calling slot at deploy). One conformance scenario green on both runtimes. Docs section. Local build <code>0.18.0-units.9</code>.</td><td>3</td><td>2 days</td></tr>
+      <tr><td rowspan="4"><strong>os</strong></td><td>A. Fixes that need no new build</td><td>The X watch, WebWatch, both prompt examples, the end-to-end fact and the run note count an item once. A unit's scenarios survive "change it"; the runner cap rises from 8 to 32.</td><td>7</td><td>2 to 3 days</td></tr>
+      <tr><td>B. Grammar and a visible failure</td><td>Scenario text reads <code>$each</code>, <code>$fail</code>, <code>failed</code>, <code>view … contains</code>, <code>never signal</code> and inline <code>then</code>. Ino can read a unit's failed reactions; the tile shows the last one.</td><td>4</td><td>2 to 3 days</td></tr>
+      <tr><td>C. The ask form</td><td>Prompts, contract text, the teaching example and the five shipped polling units move to asks. Then <code>AsksOnly</code> is switched on as its own release.</td><td>5</td><td>3 to 4 days</td></tr>
+      <tr><td>D. Honest tools</td><td>The <code>tool</code> capability gets a real provider over MCP, so a taught tool slot binds. PhotoCraft and FilmCraft say "Not executed" for backends that do nothing and return MCP errors.</td><td>3</td><td>2 to 3 days</td></tr>
+    </tbody>
+  </table></div>
+  <p>Together: 41 tasks and roughly 22 to 30 working days, 13 to 17 in digitalbrain and 9 to 13 in os. The figures are the reviewers' estimates with no measurement behind them; the kernel side of asks (phase C in digitalbrain) is the least certain.</p>
+  <p><strong>Order across the two repositories.</strong> os phase A ships first and needs nothing from the framework. Framework phase A is then packed as one build, and os phase B pins it. The asks build follows, and os phase C pins that. os turns <code>AsksOnly</code> on only after its own units and prompts run on the ask form. The PhotoCraft honesty fix in os phase D needs no framework build and can ship at any point after os phase A. Both framework builds go to the local feed only, so an os phase that pins one cannot be released until that build is published.</p>
+  <p><strong>Decided on 10 November: a polling unit keeps no waiting flag.</strong> The first draft set a <code>Polling</code> flag when it asked and cleared it when the answer arrived. If the answer never arrived, the unit stopped polling for good. The design note and both plans now teach the form shown above: ask on every tick with a fixed key, and let the executor refuse a second ask on a key that is still open.</p>
+  <p><strong>Where this sits beside the kernel wave.</strong> The ask slice runs on today's kernel and needs none of R01 to R14 first. Two of them make it cheaper if done before: R01 (delete dead code) and R03 (delete the gate), because both shrink <code>StateNeuron</code> before asks change it. R04, R05 and R11 would later simplify the executor.</p>
+</section>
+
 
 <section class="sec" id="proposals">
   <p class="eyebrow">Proposals</p>
@@ -7111,7 +7240,7 @@ public sealed class PinnedClock(DateTimeOffset start) : TimeProvider
 
 <section class="sec" id="decisions">
   <p class="eyebrow">Your decisions</p>
-  <h2>Eight questions only the owner can answer</h2>
+  <h2>Ten questions only the owner can answer</h2>
   <p class="intro">Each proposal lists its own smaller decisions. These are the ones that change the shape of the work.</p>
   <ol>
     <li><strong>Is a veto by a third party a product requirement?</strong> The gate lets one unit refuse another neuron's signal. If no, delete it as <a href="#R03">R03</a> proposes; a cap is already served by the Policies reservation, which fails safe where the gate fails open. If yes, keep the check but evaluate it inside the journal append. Count installed gate synapses in production brains before either.</li>
@@ -7122,6 +7251,8 @@ public sealed class PinnedClock(DateTimeOffset start) : TimeProvider
     <li><strong>A typed lane for build-time neurons.</strong> Not now. Run HostCostFacts first; there is no evidence yet that six JSON passes per call matter.</li>
     <li><strong>One silo per brain.</strong> Both shipped topologies rely on it, but only the storage lease enforces it. Say whether it is a rule.</li>
     <li><strong>Retention.</strong> The docs promise the floor never passes a live cursor. In production the lookup always returns null. Wire it (<a href="#R05">R05</a>) or withdraw the promise.</li>
+    <li><strong>After a reaction fails, record it and move on?</strong> Today the same signal is retried forever and blocks the unit. The ask design records a durable <code>synapse.failed</code> fact and does not retry; retrying I/O becomes the executor's job. Both plans assume yes.</li>
+    <li><strong>How does a file job reach PhotoCraft?</strong> Three things block the 1,000-file job: how file bytes travel between Files and the PhotoCraft container, how one job is isolated from another (one MCP session is shared today), and whether a unit may ask for storage.</li>
   </ol>
 </section>
 
@@ -7145,6 +7276,7 @@ public sealed class PinnedClock(DateTimeOffset start) : TimeProvider
         <li>Every "after" size and every net figure is an estimate. "Today" figures are line counts.</li>
         <li>The skeptics corrected the first-pass thesis in several places. The main ones: the tunnel is small; the silo has one base model; fossils are 5% of the source; identity is carried both ambiently and explicitly, and the fault is that the two can disagree.</li>
         <li>A grep of shipped code cannot prove that no installed brain declares a gate. That needs the census in move 1.</li>
+        <li>The "Generated code" section comes from three later passes: an Accordant fit check (four agents), a grounding pass (three) and the two plans (two writers, two reviewers). They read the code; none built or ran it.</li>
       </ul>
     </div>
   </div>
